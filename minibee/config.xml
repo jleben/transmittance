@@ -1,0 +1,41 @@
+<?xml version="1.0" ?>
+<xml>
+  <hive name="wonko_hive">
+    <minibee caps="7" configuration="2" id="1" libversion="5" name="" revision="D" serial="0013A200406A6A06">
+      <!--the id given inside the minibee tag is the unique id or number of the minibee-->
+      <!--the configutaion inside the minibee tag is the unique id of the configuration that is used. It has to match one of the configuration id's that are defined in this file.-->
+    </minibee>
+    <minibee caps="7" configuration="2" id="2" libversion="5" name="" revision="D" serial="0013A2004063828F">
+      <!--the id given inside the minibee tag is the unique id or number of the minibee-->
+      <!--the configutaion inside the minibee tag is the unique id of the configuration that is used. It has to match one of the configuration id's that are defined in this file.-->
+    </minibee>
+    <minibee caps="7" configuration="1" id="3" libversion="5" name="" revision="D" serial="0013A20040638578">
+      <!--the id given inside the minibee tag is the unique id or number of the minibee-->
+      <!--the configutaion inside the minibee tag is the unique id of the configuration that is used. It has to match one of the configuration id's that are defined in this file.-->
+    </minibee>
+    <minibee caps="7" configuration="1" id="5" libversion="5" name="" revision="D" serial="0013A20040638297">
+      <!--the id given inside the minibee tag is the unique id or number of the minibee-->
+      <!--the configutaion inside the minibee tag is the unique id of the configuration that is used. It has to match one of the configuration id's that are defined in this file.-->
+    </minibee>
+    <minibee caps="7" configuration="1" id="6" libversion="5" name="" revision="D" serial="0013A200406A6AFA">
+      <!--the id given inside the minibee tag is the unique id or number of the minibee-->
+      <!--the configutaion inside the minibee tag is the unique id of the configuration that is used. It has to match one of the configuration id's that are defined in this file.-->
+      <!--This minibee has no configuration yet! Change it to use one of the configurations in this file.-->
+    </minibee>
+    <configuration id="1" message_interval="10" name="accelero" redundancy="3" samples_per_message="1">
+      <pin config="TWIClock" id="A5" name="None"/>
+      <pin config="TWIData" id="A4" name="None"/>
+      <twi device="ADXL345" id="1" name="accelero"/>
+    </configuration>
+    <configuration id="2" name="pressure" message_interval="10" samples_per_message="1">
+      <pin config="TWIData" id="A4" />
+      <pin config="TWIClock" id="A5" />
+      <pin config="AnalogIn10bit" id="A0"  name="pad" />
+      <twi id="1" device="ADXL345" name="accelero">
+       <twislot id="0" name="x" />
+       <twislot id="1" name="y" />
+       <twislot id="2" name="z" />
+      </twi>
+    </configuration>
+  </hive>
+</xml>
