@@ -1,12 +1,11 @@
 MiniBee {
-    var <id;
+    var <id, <channel_count;
     var <status = \off;
-    var data_osc, status_osc, data_funcs, status_funcs;
-    var cleanup_osc;
-    var setup_osc;
+    var data_osc, status_osc, data_funcs, status_funcs, bus;
+    var <running = false;
 
-    *new { arg id = (0);
-        ^super.newCopyArgs(id).init
+    *new { arg id = (0), channel_count = (1);
+        ^super.newCopyArgs(id, channel_count).init
     }
 
     init {
@@ -40,13 +39,36 @@ MiniBee {
     }
 
     run {
-        data_osc.enable;
-        status_osc.enable
+        if (not(running)) {
+            data_osc.enable;
+            status_osc.enable;
+            if (bus.notNil) { bus.run };
+            CmdPeriod.add(this);
+            running = true;
+        }
     }
 
     stop {
-        data_osc.disable;
-        data_osc.disable;
+        if (running) {
+            data_osc.disable;
+            data_osc.disable;
+            if (bus.notNil) { bus.stop };
+            CmdPeriod.remove(this);
+            running = false;
+        }
+    }
+
+    doOnCmdPeriod {
+        CmdPeriod.remove(this);
+        running = false;
+    }
+
+    bus {
+        if (bus.isNil) {
+            bus = MiniBeeBus(this);
+            if (running) { bus.run };
+        };
+        ^bus;
     }
 
     add_status_func { arg func; status_funcs.addFunc(func) }
@@ -92,8 +114,8 @@ MiniBeeBus {
     var <running = false;
     var responder, bus;
 
-    *new { arg bee, channel_count = (1), server = (Server.default);
-        ^super.newCopyArgs(bee, channel_count, server).init
+    *new { arg bee, server = (Server.default);
+        ^super.newCopyArgs(bee, bee.channel_count, server).init
     }
 
     init {
@@ -130,5 +152,42 @@ MiniBeeBus {
 }
 
 MiniBeeNode {
+    var <bee, def, synth;
+    var <running = false;
 
+    *new { arg bee, def;
+        ^super.newCopyArgs(bee, def);
+    }
+
+    run { arg ...synth_args;
+        var bus, server;
+        if (not(running))
+        {
+            bus = bee.bus;
+            server = bus.server;
+
+            def.send(server);
+
+            fork({
+                server.sync;
+                synth = Synth(def.name, [\input_bus, bus.index] ++ synth_args, server);
+            }, SystemClock);
+
+            CmdPeriod.add(this);
+            running = true;
+        }
+    }
+
+    stop {
+        if(running) {
+            synth.free;
+            CmdPeriod.remove(this);
+            running = false;
+        }
+    }
+
+    doOnCmdPeriod {
+        CmdPeriod.remove(this);
+        running = false;
+    }
 }
