@@ -2,9 +2,8 @@ NodeProxy2 {
     classvar link_group;
 
     var output_rate, output_count, def, <source, <server;
-    var <bus, synth, public_synth;
+    var <bus, synth_def, synth, public_synth;
     var <running = false, <playing = false;
-    var make_synthdef;
 
     *new { arg output_rate=\control, output_count = (1), def, source, server = (Server.default);
         ^super.newCopyArgs(output_rate, output_count, def, source, server).init;
@@ -39,26 +38,32 @@ NodeProxy2 {
     }
 
     init {
-        make_synthdef = { arg def;
-            case (
-                { def.isKindOf(SynthDef) }, def,
-                { def.isKindOf(Function) }, {
-                    ProxySynthDef(
-                        server.clientID.asString ++ "_proxy_" ++ this.identityHash.abs,
-                        def,
-                        nil,
-                        nil,
-                        false,
-                        0,
-                        output_count,
-                        output_rate
-                    )
-                }
-            )
-        };
+        case (
+            { def.isKindOf(SynthDef) },
+            {
+                synth_def = def;
+            },
+
+            { def.isKindOf(Function) },
+            {
+                synth_def = ProxySynthDef
+                (
+                    server.clientID.asString ++ "_proxy_" ++ this.identityHash.abs,
+                    def,
+                    nil,
+                    nil,
+                    false,
+                    0,
+                    output_count,
+                    output_rate
+                )
+            }
+        );
+        if (synth_def.isNil) { Error("NodeProxy2: invalid definition type!").throw };
     }
+
     run { arg ...synth_args;
-        var synth_def, in_bus;
+        var in_bus;
         if (not(running))
         {
             if (source.notNil) {
@@ -71,30 +76,22 @@ NodeProxy2 {
                 bus = Bus.alloc(output_rate, server, output_count);
             };
 
-            if (def.notNil)
-            {
-                synth_def = make_synthdef.(def);
 
-                if (synth_def.isNil) {
-                    warn("Processor: can not use this processing definition.")
+            synth_def.send(server);
+
+            fork({
+                var args, source_node;
+                server.sync;
+                //args = [\input_bus, in_bus.index];
+                if (output_count > 0) { args = args ++ [\out, bus.index] };
+                args = args ++ synth_args;
+                if (source.notNil and: { source.node.notNil }) {
+                    synth = Synth.after(source.node, synth_def.name, args);
                 }{
-                    synth_def.send(server);
-
-                    fork({
-                        var args, source_node;
-                        server.sync;
-                        //args = [\input_bus, in_bus.index];
-                        if (output_count > 0) { args = args ++ [\out, bus.index] };
-                        args = args ++ synth_args;
-                        if (source.notNil and: { source.node.notNil }) {
-                            synth = Synth.after(source.node, synth_def.name, args);
-                        }{
-                            synth = Synth(synth_def.name, args, server);
-                        };
-                        if (in_bus.notNil) { synth.map(\in, source.bus) };
-                    }, SystemClock);
-                }
-            };
+                    synth = Synth(synth_def.name, args, server);
+                };
+                if (in_bus.notNil) { synth.map(\in, source.bus) };
+            }, SystemClock);
 
             CmdPeriod.add(this);
             running = true;
