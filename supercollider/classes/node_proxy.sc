@@ -6,8 +6,16 @@ NodeProxy2 {
     var <running = false, <playing = false;
     var make_synthdef;
 
-    *new { arg output_rate=\control, output_count = (0), def, source, server = (Server.default);
+    *new { arg output_rate=\control, output_count = (1), def, source, server = (Server.default);
         ^super.newCopyArgs(output_rate, output_count, def, source, server).init;
+    }
+
+    *ar { arg output_count = (1), def, source, server = (Server.default);
+        ^this.new(\audio, output_count, def, source, server)
+    }
+
+    *kr { arg output_count = (1), def, source, server = (Server.default);
+        ^this.new(\control, output_count, def, source, server)
     }
 
     *initClass {
