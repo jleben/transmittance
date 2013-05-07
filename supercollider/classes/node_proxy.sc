@@ -90,7 +90,7 @@ NodeProxy2 {
                 }{
                     synth = Synth(synth_def.name, args, server);
                 };
-                if (in_bus.notNil) { synth.map(\in, source.bus) };
+                if (in_bus.notNil) { synth.map(0, source.bus) };
             }, SystemClock);
 
             CmdPeriod.add(this);
@@ -140,7 +140,7 @@ NodeProxy2 {
                 if (source_bus.notNil) { source_bus = source_bus.asBus };
                 if (source_bus.isNil) { warn("Processor: source has no bus (it's not running?)") }
             };
-            synth.map(\in, source_bus);
+            synth.map(0, source_bus);
         }
     }
 
