@@ -71,11 +71,34 @@ MiniBee {
         ^bus;
     }
 
-    add_status_func { arg func; status_funcs.addFunc(func) }
-    remove_status_func { arg func; status_funcs.removeFunc(func) }
+    // support NodeProxy2 for node ordering
+    node { ^nil }
 
-    add_data_func { arg func; data_funcs.addFunc(func) }
-    remove_data_func { arg func; data_funcs.removeFunc(func) }
+    addFunc { arg func, source = \data;
+        var list;
+        list = source.switch (
+            \data, {data_funcs},
+            \status, {status_funcs}
+        );
+        if (list.notNil) {
+            list.addFunc(func);
+        }{
+            Error("MiniBee: unknown responder source:" + source).throw;
+        }
+    }
+
+    removeFunc { arg func, source = \data;
+        var list;
+        list = source.switch (
+            \data, {data_funcs},
+            \status, {status_funcs}
+        );
+        if (list.notNil) {
+            list.removeFunc(func);
+        }{
+            Error("MiniBee: unknown responder source:" + source).throw;
+        }
+    }
 }
 
 MiniBeeResponder {
@@ -88,8 +111,8 @@ MiniBeeResponder {
 
     run {
         if (not(running)) {
-            if (status_func.notNil) { bee.add_status_func(status_func) };
-            if (data_func.notNil) { bee.add_data_func(data_func) };
+            if (status_func.notNil) { bee.addFunc(status_func, \status) };
+            if (data_func.notNil) { bee.addFunc(data_func, \data) };
             CmdPeriod.add(this);
             running = true;
         }
@@ -97,8 +120,8 @@ MiniBeeResponder {
 
     stop {
         if (running) {
-            if (status_func.notNil) { bee.remove_status_func(status_func) };
-            if (data_func.notNil) { bee.remove_data_func(data_func) };
+            if (status_func.notNil) { bee.removeFunc(status_func, \status) };
+            if (data_func.notNil) { bee.removeFunc(data_func, \data) };
             CmdPeriod.remove(this);
             running = false;
         }
@@ -145,6 +168,8 @@ MiniBeeBus {
     index {
         ^bus !? { bus.index };
     }
+
+    asBus { ^bus }
 
     doOnCmdPeriod {
         this.stop;
