@@ -112,7 +112,7 @@ MiniBeeResponder {
 MiniBeeBus {
     var <bee, <channel_count, <server;
     var <running = false;
-    var responder, bus;
+    var responder, <bus;
 
     *new { arg bee, server = (Server.default);
         ^super.newCopyArgs(bee, bee.channel_count, server).init
@@ -152,25 +152,36 @@ MiniBeeBus {
 }
 
 MiniBeeNode {
-    var <bee, def, synth;
+    var <bee, output_count, def;
+    var out_bus, synth;
     var <running = false;
 
-    *new { arg bee, def;
-        ^super.newCopyArgs(bee, def);
+    *new { arg bee, output_count = (0), def;
+        ^super.newCopyArgs(bee, output_count, def);
     }
 
+    output_bus { ^out_bus }
+
     run { arg ...synth_args;
-        var bus, server;
+        var in_bus, server;
         if (not(running))
         {
-            bus = bee.bus;
-            server = bus.server;
+            in_bus = bee.bus;
+            server = in_bus.server;
+
+            if (output_count > 0) {
+                out_bus = Bus.control(server, output_count);
+            };
 
             def.send(server);
 
             fork({
+                var args;
                 server.sync;
-                synth = Synth(def.name, [\input_bus, bus.index] ++ synth_args, server);
+                args = [\input_bus, in_bus.index];
+                if (output_count > 0) { args = args ++ [\output_bus, out_bus.index] };
+                args = args ++ synth_args;
+                synth = Synth(def.name, args, server);
             }, SystemClock);
 
             CmdPeriod.add(this);
@@ -180,6 +191,7 @@ MiniBeeNode {
 
     stop {
         if(running) {
+            if (out_bus.notNil) { out_bus.free; out_bus = nil };
             synth.free;
             CmdPeriod.remove(this);
             running = false;
@@ -187,6 +199,7 @@ MiniBeeNode {
     }
 
     doOnCmdPeriod {
+        if (out_bus.notNil) { out_bus.free; out_bus = nil };
         CmdPeriod.remove(this);
         running = false;
     }
