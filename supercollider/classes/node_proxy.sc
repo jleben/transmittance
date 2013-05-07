@@ -73,12 +73,16 @@ NodeProxy2 {
                     synth_def.send(server);
 
                     fork({
-                        var args;
+                        var args, source_node;
                         server.sync;
                         //args = [\input_bus, in_bus.index];
                         if (output_count > 0) { args = args ++ [\out, bus.index] };
                         args = args ++ synth_args;
-                        synth = Synth(synth_def.name, args, server);
+                        if (source.notNil and: { source.node.notNil }) {
+                            synth = Synth.after(source.node, synth_def.name, args);
+                        }{
+                            synth = Synth(synth_def.name, args, server);
+                        };
                         if (in_bus.notNil) { synth.map(\in, source.bus) };
                     }, SystemClock);
                 }
@@ -133,6 +137,10 @@ NodeProxy2 {
             };
             synth.map(\in, source_bus);
         }
+    }
+
+    node {
+        ^ if (running, synth);
     }
 
     doOnCmdPeriod {
