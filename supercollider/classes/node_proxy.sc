@@ -1,20 +1,12 @@
 NodeProxy2 {
     classvar link_group;
 
-    var output_rate, output_count, def, <source, <server;
+    var def, <source, <server;
     var <bus, synth_def, synth, public_synth;
     var <running = false, <playing = false;
 
-    *new { arg output_rate=\control, output_count = (1), def, source, server = (Server.default);
-        ^super.newCopyArgs(output_rate, output_count, def, source, server).init;
-    }
-
-    *ar { arg output_count = (1), def, source, server = (Server.default);
-        ^this.new(\audio, output_count, def, source, server)
-    }
-
-    *kr { arg output_count = (1), def, source, server = (Server.default);
-        ^this.new(\control, output_count, def, source, server)
+    *new { arg def, source, server = (Server.default);
+        ^super.newCopyArgs(def, source, server).init;
     }
 
     *initClass {
@@ -38,60 +30,51 @@ NodeProxy2 {
     }
 
     init {
-        case (
-            { def.isKindOf(SynthDef) },
-            {
-                synth_def = def;
-            },
-
-            { def.isKindOf(Function) },
-            {
-                synth_def = ProxySynthDef
-                (
-                    server.clientID.asString ++ "_proxy_" ++ this.identityHash.abs,
-                    def,
-                    nil,
-                    nil,
-                    false,
-                    0,
-                    output_count,
-                    output_rate
-                )
-            }
+        synth_def = ProxySynthDef2(
+            server.clientID.asString ++ "_proxy_" ++ this.identityHash.abs,
+            def
         );
-        if (synth_def.isNil) { Error("NodeProxy2: invalid definition type!").throw };
     }
 
+    numChannels { ^synth_def.numChannels }
+
+    rate { ^synth_def.rate }
+
     run { arg ...synth_args;
-        var in_bus;
+        var args, source_bus, source_node;
         if (not(running))
         {
+            args = args ++ synth_args;
+
             if (source.notNil) {
-                in_bus = source.bus;
-                if (in_bus.notNil) { in_bus = in_bus.asBus };
-                if (in_bus.isNil) { warn("Processor: source has no bus (it's not running?)") }
-            };
-
-            if (output_count > 0) {
-                bus = Bus.alloc(output_rate, server, output_count);
-            };
-
-
-            synth_def.send(server);
-
-            fork({
-                var args, source_node;
-                server.sync;
-                //args = [\input_bus, in_bus.index];
-                if (output_count > 0) { args = args ++ [\out, bus.index] };
-                args = args ++ synth_args;
-                if (source.notNil and: { source.node.notNil }) {
-                    synth = Synth.after(source.node, synth_def.name, args);
-                }{
-                    synth = Synth(synth_def.name, args, server);
+                source_bus = source.bus;
+                if (source_bus.notNil) { source_bus = source_bus.asBus };
+                if (source_bus.isNil) {
+                    warn("NodeProxy: source has no output, or it is not running.")
                 };
-                if (in_bus.notNil) { synth.map(0, source.bus) };
-            }, SystemClock);
+                source_node = source.node;
+            };
+
+            if (this.numChannels > 0) {
+                bus = Bus.alloc(this.rate, server, this.numChannels);
+                args = args ++ [\out, bus.index]
+            };
+
+            args = args ++ synth_args;
+            if (this.numChannels > 0) { args = args ++ [\out, bus.index] };
+
+            if (source_node.notNil) {
+                synth = synth_def.play(source_node, args, 'addAfter');
+            }{
+                synth = synth_def.play(server, args);
+            };
+
+            if (source_bus.notNil) {
+                fork ({
+                    server.sync;
+                    synth.map(0, source.bus)
+                }, SystemClock);
+            };
 
             CmdPeriod.add(this);
             running = true;
@@ -113,9 +96,9 @@ NodeProxy2 {
         var synth_func;
         this.run;
         if (not(playing)) {
-            if (output_count > 0)
+            if (this.numChannels > 0 && this.rate.notNil)
             {
-                synth_func = output_rate.switch (
+                synth_func = this.rate.switch (
                     \audio, `{ Out.ar( bus_index, In.ar(bus.index, bus.numChannels) ) },
                     \control, `{ Out.kr( bus_index, In.kr(bus.index, bus.numChannels) ) }
                 );
