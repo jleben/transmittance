@@ -6,7 +6,7 @@ NodeProxy2 {
     var public_synth_def, public_synth, public_bus_index;
     var <running = false, <playing = false;
     ///
-    var cleanup;
+    var remap, cleanup;
 
     *new { arg def, source, server = (Server.default);
         ^super.newCopyArgs(nil, source, server).init(def);
@@ -33,14 +33,40 @@ NodeProxy2 {
     }
 
     init { arg def_;
+
+        remap = {
+            var source_bus, source_channels, own_channels;
+            if (running) {
+                own_channels = synth_def.controls.size;
+                source_channels = 0;
+                // remap source channels
+                if (source.notNil && { source.running } ) {
+                    source_bus = source.bus;
+                    if (source_bus.notNil) { source_bus = source_bus.asBus };
+                    if (source_bus.isNil) {
+                        warn("NodeProxy2: source has no output.")
+                    }{
+                        synth.map(0, source_bus);
+                        source_channels = source_bus.numChannels;
+                    }
+                };
+                // unmap the rest
+                if (own_channels > source_channels) {
+                    synth.mapn(source_channels, -1, own_channels - source_channels);
+                };
+            }
+        };
+
         cleanup = {
             if (bus.notNil) { bus.free; bus = nil };
+            if (source.notNil) { source.removeDependant(this) };
             synth_params.clear;
             CmdPeriod.remove(this);
             synth = nil;
             public_synth = nil;
             running = false;
             playing = false;
+            this.changed(\bus);
         };
 
         synth_params = IdentityDictionary();
@@ -84,12 +110,20 @@ NodeProxy2 {
         };
 
         if (source.notNil) {
+            source_node = source.node;
             source_bus = source.bus;
             if (source_bus.notNil) { source_bus = source_bus.asBus };
             if (source_bus.isNil) {
                 warn("NodeProxy: source has no output, or it is not running.")
             };
-            source_node = source.node;
+        };
+
+        if (source_node.notNil) {
+            server_target = source.node;
+            server_add_action = 'addAfter';
+        }{
+            server_target = server.defaultGroup;
+            server_add_action = 'addToHead';
         };
 
         if (this.numChannels > 0) {
@@ -98,14 +132,6 @@ NodeProxy2 {
         };
 
         args = args ++ parameters;
-
-        if (source_node.notNil) {
-            server_target = source_node;
-            server_add_action = 'addAfter';
-        }{
-            server_target = server.defaultGroup;
-            server_add_action = 'addToHead';
-        };
 
         synth = Synth.basicNew(synth_def.name, server);
 
@@ -126,9 +152,13 @@ NodeProxy2 {
 
         CmdPeriod.add(this);
 
+        if (source.notNil) { source.addDependant(this) };
+
         running = true;
 
         synth_params.putPairs( parameters );
+
+        this.changed(\bus);
     }
 
     set { arg ...parameters;
@@ -169,10 +199,17 @@ NodeProxy2 {
 
     source_ { arg object;
         if (source == object) { ^this };
+        if (source.notNil) { source.removeDependant(this) };
         source = object;
-        if (running) {
-            warn("NodeProxy2: Can not remap inputs to another source while running."
-                + "Please restart this node.");
+        remap.value;
+        if (source.notNil) { source.addDependant(this) };
+    }
+
+    update { arg object, what;
+        if (object == source) {
+            what.switch (
+                \bus, remap
+            );
         }
     }
 
