@@ -5,6 +5,8 @@ NodeProxy2 {
     var <bus, synth_def, synth_params, synth;
     var public_synth_def, public_synth, public_bus_index;
     var <running = false, <playing = false;
+    ///
+    var cleanup;
 
     *new { arg def, source, server = (Server.default);
         ^super.newCopyArgs(nil, source, server).init(def);
@@ -31,6 +33,16 @@ NodeProxy2 {
     }
 
     init { arg def_;
+        cleanup = {
+            if (bus.notNil) { bus.free; bus = nil };
+            synth_params.clear;
+            CmdPeriod.remove(this);
+            synth = nil;
+            public_synth = nil;
+            running = false;
+            playing = false;
+        };
+
         synth_params = IdentityDictionary();
         this.def = def_;
     }
@@ -126,18 +138,6 @@ NodeProxy2 {
         };
     }
 
-    stop {
-        if(running) {
-            if (bus.notNil) { bus.free; bus = nil };
-            synth.free;
-            synth_params.clear;
-            if (playing) { public_synth.free };
-            CmdPeriod.remove(this);
-            running = false;
-            playing = false;
-        }
-    }
-
     play { arg bus_index = (0) ...parameters;
         var synth_func;
 
@@ -180,12 +180,15 @@ NodeProxy2 {
         ^ if (running, synth);
     }
 
+    stop {
+        if(not(running)) { ^this };
+        synth.free;
+        if (playing) { public_synth.free };
+        cleanup.value;
+    }
+
     doOnCmdPeriod {
-        if (bus.notNil) { bus.free; bus = nil };
-        synth_params.clear;
-        CmdPeriod.remove(this);
-        running = false;
-        playing = false;
+        cleanup.value;
     }
 }
 
