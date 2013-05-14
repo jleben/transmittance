@@ -266,33 +266,4 @@ NodeProxy2 {
     }
 }
 
-
-NodeProxyDef2 {
-    classvar all_proxies;
-
-    *initClass {
-        Class.initClassTree(IdentityDictionary);
-        all_proxies = IdentityDictionary();
-    }
-
-    *new { arg name, def, source, server;
-        var proxy, parameters, was_running;
-        if (all_proxies.isNil) {
-            all_proxies = IdentityDictionary();
-        };
-        proxy = all_proxies[name];
-        if (proxy.isNil) {
-            if (def.notNil) {
-                proxy = NodeProxy2(def, source, server);
-                all_proxies[name] = proxy;
-            }
-        }{
-            if (def.notNil) {
-                proxy.setAll(def, source ? proxy.source, server ? proxy.server);
-            }
-        };
-        ^proxy;
-    }
-}
-
 N : NodeProxy2 {}
