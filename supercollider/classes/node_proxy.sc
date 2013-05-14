@@ -6,7 +6,7 @@ NodeProxy2 {
     var public_synth_def, public_synth, public_bus_index;
     var <running = false, <playing = false;
     ///
-    var remap, cleanup;
+    var make_synth_def, remap, cleanup;
 
     *new { arg def, source, server = (Server.default);
         ^super.newCopyArgs(nil, source, server).init(def);
@@ -33,6 +33,13 @@ NodeProxy2 {
     }
 
     init { arg def_;
+
+        make_synth_def = { arg function, server;
+            ProxySynthDef2 (
+                server.clientID.asString ++ "_proxy_" ++ this.identityHash.abs,
+                function
+            )
+        };
 
         remap = {
             var source_bus, source_channels, own_channels;
@@ -76,30 +83,68 @@ NodeProxy2 {
     def_ { arg function;
         var sdef, was_running, was_playing, params;
 
-        sdef = ProxySynthDef2 (
-            server.clientID.asString ++ "_proxy_" ++ this.identityHash.abs,
-            function
-        );
+        sdef = make_synth_def.value(function, server);
 
         def = function;
         synth_def = sdef;
+
         was_running = running;
         was_playing = playing;
         params = synth_params.asKeyValuePairs;
 
         this.stop;
-        if (was_playing) {
+
+        case
+        { was_playing } {
             this.play( public_bus_index, *params );
-        }{
-            if (was_running) {
-                this.run( *params );
-            };
+        }
+        { was_running } {
+            this.run( *params );
+        };
+    }
+
+    source_ { arg object;
+        var old_source;
+        if (source == object) { ^this };
+        old_source = source;
+        source = object;
+        if (running) {
+            remap.value;
+            if (old_source.notNil) { source.removeDependant(this) };
+            if (source.notNil) { source.addDependant(this) };
+        }
+    }
+
+    setAll { arg def_, source_, server_ = (Server.default);
+        var sdef, was_running, was_playing, params;
+
+        sdef = make_synth_def.value(def_, server_);
+
+        was_running = running;
+        was_playing = playing;
+        params = synth_params.asKeyValuePairs;
+
+        this.stop;
+
+        server = server_;
+        def = def_;
+        synth_def = sdef;
+        source = source_;
+
+        case
+        { was_playing } {
+            this.play( public_bus_index, *params );
+        }
+        { was_running } {
+            this.run( *params );
         };
     }
 
     numChannels { ^synth_def.numChannels }
 
     rate { ^synth_def.rate }
+
+    parameters { ^synth_params.asKeyValuePairs }
 
     run { arg ...parameters;
         var args, source_bus, source_node, server_target, server_add_action, map_msg, play_bundle;
@@ -197,14 +242,6 @@ NodeProxy2 {
         }
     }
 
-    source_ { arg object;
-        if (source == object) { ^this };
-        if (source.notNil) { source.removeDependant(this) };
-        source = object;
-        remap.value;
-        if (source.notNil) { source.addDependant(this) };
-    }
-
     update { arg object, what;
         if (object == source) {
             what.switch (
@@ -239,7 +276,7 @@ NodeProxyDef2 {
     }
 
     *new { arg name, def, source, server;
-        var proxy;
+        var proxy, parameters, was_running;
         if (all_proxies.isNil) {
             all_proxies = IdentityDictionary();
         };
@@ -251,8 +288,7 @@ NodeProxyDef2 {
             }
         }{
             if (def.notNil) {
-                proxy.def = def;
-                proxy.source = source;
+                proxy.setAll(def, source ? proxy.source, server ? proxy.server);
             }
         };
         ^proxy;
