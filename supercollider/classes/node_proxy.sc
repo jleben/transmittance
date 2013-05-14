@@ -168,15 +168,11 @@ NodeProxy2 {
     }
 
     source_ { arg object;
-        var source_bus;
+        if (source == object) { ^this };
         source = object;
         if (running) {
-            if (source.notNil) {
-                source_bus = source.bus;
-                if (source_bus.notNil) { source_bus = source_bus.asBus };
-                if (source_bus.isNil) { warn("Processor: source has no bus (it's not running?)") }
-            };
-            synth.map(0, source_bus);
+            warn("NodeProxy2: Can not remap inputs to another source while running."
+                + "Please restart this node.");
         }
     }
 
@@ -190,6 +186,36 @@ NodeProxy2 {
         CmdPeriod.remove(this);
         running = false;
         playing = false;
+    }
+}
+
+
+NodeProxyDef2 {
+    classvar all_proxies;
+
+    *initClass {
+        Class.initClassTree(IdentityDictionary);
+        all_proxies = IdentityDictionary();
+    }
+
+    *new { arg name, def, source, server;
+        var proxy;
+        if (all_proxies.isNil) {
+            all_proxies = IdentityDictionary();
+        };
+        proxy = all_proxies[name];
+        if (proxy.isNil) {
+            if (def.notNil) {
+                proxy = NodeProxy2(def, source, server);
+                all_proxies[name] = proxy;
+            }
+        }{
+            if (def.notNil) {
+                proxy.def = def;
+                proxy.source = source;
+            }
+        };
+        ^proxy;
     }
 }
 
