@@ -28,6 +28,6 @@ ProxySynthDef2 : SynthDef {
 
 	initProxy { arg rate_, numChannels_;
 		rate = rate_;
-		numChannels = numChannels_;
+		numChannels = numChannels_ ? 0;
 	}
 }
