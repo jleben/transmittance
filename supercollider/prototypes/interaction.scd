@@ -1,0 +1,27 @@
+(
+// Assuming a MiniBee as source.
+~trigger = NodeDef {
+    arg press, x, y, z;
+
+    var x0, x1, x2, trigger;
+    var thresh_in, thresh_out;
+
+    thresh_in = LocalIn.kr(1);
+
+    x0 = (x - 0.5).abs + (y - 0.5).abs + (z - 0.5).abs;
+
+    x1 = Delay1.kr(x0);
+    //x2 = Delay1.kr(x1);
+    trigger = (x0 < x1)
+    * ((x1  * (1 - thresh_in)) > 0.12 )
+    ;
+
+    thresh_out =
+    Env([0,1,0],[0,0.25],3).kr(gate:trigger);
+
+    LocalOut.kr( thresh_out );
+
+    //K2A.ar(x - 0.5);
+    K2A.ar(trigger);
+};
+)
