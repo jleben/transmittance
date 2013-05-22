@@ -1,7 +1,7 @@
 (
 // Assuming a MiniBee as source.
-~trigger = NodeDef {
-    arg press, x, y, z;
+~trigger = NodeDef { arg press, x, y, z;
+    var threshold = 0.15;
 
     var x0, x1, x2, trigger;
     var thresh_in, thresh_out;
@@ -13,7 +13,7 @@
     x1 = Delay1.kr(x0);
     //x2 = Delay1.kr(x1);
     trigger = (x0 < x1)
-    * ((x1  * (1 - thresh_in)) > 0.12 )
+    * ((x1  * (1 - thresh_in)) > threshold )
     ;
 
     thresh_out =
