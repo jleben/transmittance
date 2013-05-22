@@ -24,4 +24,15 @@
     //K2A.ar(x - 0.5);
     K2A.ar(trigger);
 };
+~trigger.source = ~bee;
+
+~tilt = NodeDef { arg press, x,y,z;
+	var coeff = 15;
+	var in, tilt;
+	in = ([x,y,z] - 0.5) * coeff;
+	in = in / (1 + (in * in)).sqrt;
+	tilt = LPF.kr( Lag.kr( in ), 5 );
+	K2A.ar(tilt)
+};
+~tilt.source = ~bee;
 )
