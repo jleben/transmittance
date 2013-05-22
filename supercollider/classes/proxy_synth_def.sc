@@ -1,5 +1,5 @@
 ProxySynthDef2 : SynthDef {
-    var <rate, <numChannels;
+    var <rate, <numChannels, <numInputs;
 
 	*new { arg name, func, rates;
 		var rate, numChannels, me;
@@ -29,5 +29,7 @@ ProxySynthDef2 : SynthDef {
 	initProxy { arg rate_, numChannels_;
 		rate = rate_;
 		numChannels = numChannels_ ? 0;
+		numInputs = this.controls.size;
+		if (numChannels > 0) { numInputs = numInputs - 1}; // without the added 'out'!
 	}
 }

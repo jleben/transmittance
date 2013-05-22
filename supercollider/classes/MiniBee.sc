@@ -1,11 +1,11 @@
 MiniBee {
-    var <id, <channel_count;
+    var <id, <numChannels;
     var <status = \off;
     var data_osc, status_osc, data_funcs, status_funcs, bus;
     var <running = false;
 
-    *new { arg id = (0), channel_count = (1);
-        ^super.newCopyArgs(id, channel_count).init
+    *new { arg id = (0), numChannels = (1);
+        ^super.newCopyArgs(id, numChannels).init
     }
 
     init {
@@ -133,12 +133,12 @@ MiniBeeResponder {
 }
 
 MiniBeeBus {
-    var <bee, <channel_count, <server;
+    var <bee, <numChannels, <server;
     var <running = false;
     var responder, <bus;
 
     *new { arg bee, server = (Server.default);
-        ^super.newCopyArgs(bee, bee.channel_count, server).init
+        ^super.newCopyArgs(bee, bee.numChannels, server).init
     }
 
     init {
@@ -149,7 +149,7 @@ MiniBeeBus {
 
     run {
         if (not(running)) {
-            bus = Bus.control(server, channel_count);
+            bus = Bus.control(server, numChannels);
             responder.run;
             CmdPeriod.add(this);
             running = true;
