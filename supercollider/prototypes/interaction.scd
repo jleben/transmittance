@@ -35,4 +35,14 @@
 	K2A.ar(tilt)
 };
 ~tilt.source = ~bee;
+
+~busy = NodeDef { arg press, x, y, z;
+	var grow = 0.02, attack = 1.5, decay = 10;
+	var in, out;
+	in = [x,y,z];
+	in = ((in-0.5).abs - 0.04).max(0).sum * grow;
+	out = Decay2.kr(in, attack, decay).min(1.0);
+	K2A.ar(out);
+};
+~busy.source = ~bee;
 )
