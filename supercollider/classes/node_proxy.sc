@@ -299,7 +299,9 @@ NodeProxy2 {
     }
 
     update { arg object, what;
-        if (source.includes(object)) {
+        if (source === object or: {
+            source.isArray and: { source.includes(object) }
+        }) {
             what.switch (
                 \bus, remap
             );
