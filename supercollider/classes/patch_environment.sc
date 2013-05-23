@@ -23,9 +23,10 @@ PatchEnvironment : EnvironmentRedirect
 			if (cur_value.class === FuncProxy)
 			{
 				cur_value.def = value.def;
+				cur_value.numChannels = value.numChannels;
 				^cur_value;
 			}{
-				value = FuncProxy (value.def);
+				value = FuncProxy (value.def, value.numChannels);
 				envir.put(key, value);
 				^value;
 			}
@@ -41,8 +42,8 @@ NodeDef {
 }
 
 FuncDef {
-	var <def;
-	*new { arg def;
-		^super.newCopyArgs( { |src, data| def.value(*data) } );
+	var <def, <numChannels;
+	*new { arg def, numChannels = (0);
+		^super.newCopyArgs(def, numChannels);
 	}
 }
