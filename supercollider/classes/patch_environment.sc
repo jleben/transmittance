@@ -2,10 +2,11 @@ PatchEnvironment : EnvironmentRedirect
 {
 	put { arg key, value;
 		var cur_value;
+		cur_value = envir.at(key);
+
 		case
 		{ value.class === NodeDef }
 		{
-			cur_value = envir.at(key);
 			if (cur_value.class === NodeProxy2)
 			{
 				cur_value.def = value.def;
@@ -19,7 +20,6 @@ PatchEnvironment : EnvironmentRedirect
 
 		{ value.class === FuncDef }
 		{
-			cur_value = envir.at(key);
 			if (cur_value.class === FuncProxy)
 			{
 				cur_value.def = value.def;
@@ -31,6 +31,13 @@ PatchEnvironment : EnvironmentRedirect
 				^value;
 			}
 		}
+
+		{ value.class === Buffer and: { cur_value.class === Buffer }}
+		{
+			cur_value.free;
+			^envir.put(key, value);
+		}
+
 		// else
 		{ ^envir.put(key, value) };
 	}
