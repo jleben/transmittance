@@ -1,3 +1,5 @@
+~bee = MiniBee(id:2, numChannels: 3);
+
 (
 ~trigger = NodeDef { arg x, y, z;
     var threshold = 0.015;
