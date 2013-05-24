@@ -1,6 +1,6 @@
 /*****************************************************
 Sequence of FM tones
-Modulation index controlled by tilt at trigger time
+- FM index controlled by tilt at trigger time
 *****************************************************/
 
 (
@@ -37,4 +37,43 @@ Pbind(*[
     mod2: Pfunc({~fm_mod[1]}),
     mod3: Pfunc({~fm_mod[2]}),
 ]).play;
+)
+
+/*****************************************************
+GrainFM:
+- FM index and amp controlled by tilt
+- trigger randomizes carrier frequency
+******************************************************/
+(
+~grain_fm_proto = { arg freq = 440, ratio = 1, index = 0, dur = 0.1, amp = 0.1;
+    GrainFM.ar(
+        1,
+        TDuty.ar(Dwhite(0.01,0.05)),
+        dur,
+        freq,
+        freq * ratio,
+        index * 20 / ratio + WhiteNoise.ar(2)
+    )
+    * LagUD.kr(amp, 0.1, 2);
+};
+
+~grain_fm_1 = NodeDef { arg x, y, z, tr;
+   ~grain_fm_proto.value(
+        freq: TRand.kr(200, 600, tr),
+        ratio: 1.5,
+        index: x.abs,
+        amp: (x + 0.1).max(0) * 0.1;
+    )
+};
+~grain_fm_1.source = ~preproc_node;
+
+~grain_fm_2 = NodeDef { arg x, y, z, tr;
+   ~grain_fm_proto.value(
+        freq: TRand.kr(200, 600, tr),
+        ratio: 0.5,
+        index: y.abs,
+        amp: (y + 0.1).max(0) * 0.1;
+    )
+};
+~grain_fm_2.source = ~preproc_node;
 )
