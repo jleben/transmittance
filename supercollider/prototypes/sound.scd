@@ -77,3 +77,75 @@ GrainFM:
 };
 ~grain_fm_2.source = ~preproc_node;
 )
+
+/****************************
+Granular Sample Stretch
+****************************/
+
+(
+~grain_sample_stretch = NodeDef { arg x, y, z;
+    var grains, framesInBuffer;
+    var buf = ~b_have_to_be_hot;
+    var interval, dur;
+    interval = 0.02;
+    dur = 0.1;
+
+    grains = TGrains.ar (
+        2,
+        TDuty.ar(Dwhite(interval * 0.3, interval * 1.8)),
+        buf,
+        1, //BufRateScale.ir(buf),
+        Phasor.ar(0, x * 2, 0, BufFrames.ir(buf), 0) / BufSampleRate.ir(buf),
+        dur,
+        0.5, // WhiteNoise.kr(0.6), // pan
+        0.2 // amp
+    );
+    /*
+    MoogFF.ar(
+        grains, // source sound
+        press.lincurve(0.5, 1, 40, 8000, 4, nil),
+        2
+    );
+    */
+};
+~grain_sample_stretch.source = ~preproc_node;
+)
+
+/****************************
+Granular Sample Travelling
+****************************/
+
+(
+~grain_sample_travel_proto = { arg buf, pos, amp = 0.3;
+    var grains, framesInBuffer;
+    var interval, dur;
+    interval = 0.02;
+    dur = 0.1;
+
+    grains = TGrains.ar (
+        2,
+        TDuty.ar(Dwhite(interval * 0.3, interval * 1.8)),
+        buf,
+        BufRateScale.ir(buf),
+        pos * BufFrames.ir(buf) / BufSampleRate.ir(buf),
+        dur,
+        WhiteNoise.ar(0.6), // pan
+        amp // amp
+    );
+};
+
+~grain_sample_travel1 = NodeDef { arg x, y, z;
+    ~grain_sample_travel_proto.value( ~b_cello_rough, x * 0.8, 0.2 );
+};
+~grain_sample_travel1.source = ~preproc_node;
+
+~grain_sample_travel2 = NodeDef { arg x, y, z;
+    ~grain_sample_travel_proto.value( ~b_cello_melody, y * 0.8, 0.6 );
+};
+~grain_sample_travel2.source = ~preproc_node;
+
+~grain_sample_travel3 = NodeDef { arg x, y, z;
+    ~grain_sample_travel_proto.value( ~b_hihat_bowed, z * 0.8, 0.2 );
+};
+~grain_sample_travel3.source = ~preproc_node;
+)
