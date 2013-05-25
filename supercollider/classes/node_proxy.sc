@@ -237,13 +237,14 @@ NodeProxy2 {
         server_target = target;
         server_order = order;
 
-        if (target.class === NodeProxy2) {
-            play_target = target.node
+        play_target = target;
+        if (play_target.class === NodeProxy2) { play_target = play_target.node };
+        if (play_target.isNil) {
+            play_target = Server.default.defaultGroup;
+            play_order = 'addToHead';
         }{
-            play_target = target ?? { Server.default.defaultGroup };
+            play_order = order ? 'addToHead';
         };
-
-        play_order = order ? 'addToHead';
 
         server = play_target.server;
 
