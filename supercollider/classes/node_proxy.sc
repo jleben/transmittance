@@ -293,18 +293,37 @@ NodeProxy2 {
         this.run(parameters, target, order);
 
         if (playing) {
-            public_synth.set(*[out: bus_index]);
+            public_synth.set(*[out: public_bus_index]);
             ^this;
         };
 
         if (this.numChannels > 0 && this.rate.notNil)
         {
-            synth_func = this.rate.switch (
-                \audio, `{ Out.ar( \out.kr, In.ar(bus.index, bus.numChannels) ) },
-                \control, `{ Out.kr( \out.kr, In.kr(bus.index, bus.numChannels) ) }
+            var in_bus_index, num_channels, play_def, play_def_name;
+
+            in_bus_index = bus.index;
+            num_channels = bus.numChannels;
+
+            this.rate.switch (
+                \audio, {
+                    play_def_name = "audio_proxy_player_" ++ num_channels;
+                    play_def = SynthDef(play_def_name, {
+                        Out.ar( \out.kr, In.ar(\bus.ir, num_channels) )
+                    })
+                },
+                \control, {
+                    play_def_name = "control_proxy_player_" ++ num_channels;
+                    play_def = SynthDef(play_def_name, {
+                        Out.ar( \out.kr, K2A.ar( In.kr(\bus.ir, num_channels) ) )
+                    });
+                }
             );
-            if (synth_func.notNil) {
-                public_synth = synth_func.play(NodeProxy2.linkGroup, args: [out: bus_index]);
+
+            if (play_def.notNil) {
+                public_synth = play_def.play (
+                    NodeProxy2.linkGroup,
+                    args: [out: public_bus_index, bus: in_bus_index]
+                );
                 playing = true;
             }{
                 Error("Processor: invalid output rate!").throw;
