@@ -247,8 +247,10 @@ NodeProxy2 {
 
         server = play_target.server;
 
-        synth_def.name = name !? { name.asString } ?? { "proxy"}
-        ++ $_ ++  server.clientID.asString ++ this.identityHash.abs;
+        synth_def.name = (
+            name !? { name.asString }
+            ?? { "proxy_" ++ this.identityHash.abs ++  server.clientID.asString };
+        );
 
         if (this.numChannels > 0) {
             bus = Bus.alloc(this.rate, server, this.numChannels);
