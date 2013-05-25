@@ -1,19 +1,20 @@
 NodeProxy2 {
     classvar link_group;
 
-    var <>name, <def, source;
-    var <bus, synth_def, synth_params, synth;
+    var <>name, <def;
+    var <mappings;
+    var <bus, synth_def, synth;
     var <server, server_target, server_order;
     var public_synth_def, public_synth, public_bus_index;
     var <running = false, <playing = false;
     ///
     var make_synth_def,
-    make_source_dependence, remove_source_dependence,
-    map_source_msg_bundle, remap,
+    make_all_source_dependences, remove_all_source_dependences,
+    make_map_msg, make_map_bus_msg, remap,
     cleanup;
 
-    *new { arg name, def, source;
-        ^super.newCopyArgs(name, nil, source).init(def);
+    *new { arg name, def;
+        ^super.newCopyArgs(name).init(def);
     }
 
     *initClass {
@@ -47,107 +48,140 @@ NodeProxy2 {
             )
         };
 
-        make_source_dependence = {
-            source.do { |src|
-                if (src.notNil) { src.addDependant(this) };
+        make_all_source_dependences = {
+            mappings.do { |mapping|
+                if (mapping.isArray) { mapping = mapping[0] };
+                if (mapping.respondsTo(\bus), mapping.addDependant(this));
             }
         };
 
-        remove_source_dependence = {
-            source.do { |src|
-                if (src.notNil) { src.removeDependant(this) };
+        remove_all_source_dependences = {
+            mappings.do { |mapping|
+                if (mapping.isArray) { mapping = mapping[0] };
+                if (mapping.respondsTo(\bus), mapping.removeDependant(this));
             }
         };
 
-        map_source_msg_bundle =
+        make_map_msg =
         {
             arg node;
 
             var bundle = List();
-            var input_idx = 0;
             var own_channels;
 
             own_channels = synth_def.numInputs;
 
-            source.do { |src, src_idx|
-                var bus, src_channels;
-                src_channels = src.numChannels ? 0;
-                if (src_channels < 1) {
-                    warn("NodeProxy2: source % has no output.".format(src_idx));
-                }{
-                    if (not(src.running)) {
-                        // Avoid warning on remapping due source being stopped:
-                        //warn("NodeProxy2: source % is not running.", src_idx);
-                    } {
-                        bus = src.bus;
-                        if (bus.notNil) { bus = bus.asBus };
-                        if (bus.isNil) {
-                            warn("NodeProxy2: source % does not provide a bus.".format(src_idx));
-                        }
-                    };
+            mappings.keysValuesDo { |key, mapping|
+                var src, map_index, map_channels, msg;
+
+
+                if (mapping.isArray) {
+                    src = mapping[0];
+                    map_index = mapping[1] ? 0;
+                    map_channels = mapping[2] ? 1;
+                } {
+                    src = mapping;
+                    map_index = 0;
+                    map_channels = if (src.respondsTo(\bus), { src.numChannels }, 1);
                 };
-                if (bus.notNil)
-                {
-                    bus.rate.switch (
-                        \control,
-                        {
-                            bundle.add([
-                                "/n_mapn",
-                                node.nodeID,
-                                input_idx,
-                                bus.index,
-                                src_channels
-                            ]);
-                        },
-                        \audio,
-                        {
-                            bundle.add([
-                                "/n_mapan",
-                                node.nodeID,
-                                input_idx,
-                                bus.index,
-                                src_channels
-                            ]);
-                        }
-                    );
+
+                if (src.respondsTo(\bus)) {
+                    msg = make_map_bus_msg.value(node, key, src, map_index, map_channels);
+                    if (msg.notNil) { bundle.add(msg) };
                 }{
                     bundle.add([
-                        "/n_mapn",
+                        "/n_set",
                         node.nodeID,
-                        input_idx,
-                        -1,
-                        src_channels
+                        key,
+                        src
                     ])
-                };
-                input_idx = input_idx + src_channels;
-            };
-
-            if (own_channels > input_idx)
-            {
-                bundle.add([
-                    "/n_mapn",
-                    node.nodeID,
-                    input_idx,
-                    -1,
-                    own_channels - input_idx;
-                ])
+                }
             };
 
             bundle.array; // return
         };
 
+        make_map_bus_msg =
+        {
+            arg node, key, src, map_index, map_channels;
+
+            var src_bus, src_index, src_channels, msg;
+
+            src_channels = src.numChannels;
+
+            case
+
+            { src_channels < 1 }
+            {
+                warn("NodeProxy2: source for '%' has no output.".format(key));
+            }
+
+            { src.running }
+            {
+                src_bus = src.bus;
+                if (src_bus.notNil) { src_bus = src_bus.asBus };
+                if (src_bus.isNil) {
+                    warn("NodeProxy2: source for '%'' does not provide a bus.".format(key));
+                }{
+                    src_index = src_bus.index;
+
+                    if (
+                        map_index < 0
+                        or: {map_channels < 1}
+                        or: {(map_index + map_channels) > (src_index + src_channels)}
+                    ) {
+                        warn("NodeProxy2: mapping for '%' out of range.".format(key));
+                        map_index = nil;
+                    }{
+                        map_index = src_index + map_index;
+                    }
+                }
+            };
+
+            if (src_bus.notNil && map_index.notNil)
+            {
+                src_bus.rate.switch (
+                    \control,
+                    {
+                        msg = [
+                            "/n_mapn",
+                            node.nodeID,
+                            key,
+                            map_index,
+                            map_channels
+                        ];
+                    },
+                    \audio,
+                    {
+                        msg = [
+                            "/n_mapan",
+                            node.nodeID,
+                            key,
+                            map_index,
+                            map_channels
+                        ];
+                    }
+                );
+            };
+
+            msg // return
+        };
+
         remap = {
-            var map_msg_bundle;
+            var map_msg;
             if (running) {
-                map_msg_bundle = map_source_msg_bundle.value(synth);
-                server.sendBundle(nil, *map_msg_bundle);
+                map_msg = make_map_msg.value(synth);
+                server.sendBundle(
+                    nil,
+                    ["/n_mapn", synth.nodeID, 0, -1, synth_def.numInputs], // unmap all
+                    *map_msg
+                );
             };
         };
 
         cleanup = {
             if (bus.notNil) { bus.free; bus = nil };
-            remove_source_dependence.value;
-            synth_params.clear;
+            remove_all_source_dependences.value;
             CmdPeriod.remove(this);
             synth = nil;
             public_synth = nil;
@@ -156,12 +190,12 @@ NodeProxy2 {
             this.changed(\bus);
         };
 
-        synth_params = IdentityDictionary();
+        mappings = IdentityDictionary();
         this.def = def_;
     }
 
     def_ { arg function;
-        var sdef, was_running, was_playing, params;
+        var sdef, was_running, was_playing;
 
         sdef = make_synth_def.value(function);
 
@@ -170,67 +204,61 @@ NodeProxy2 {
 
         was_running = running;
         was_playing = playing;
-        params = synth_params.asKeyValuePairs;
 
         this.stop;
 
         case
         { was_playing } {
-            this.play( public_bus_index, params, server_target, server_order );
+            this.play( public_bus_index, server_target, server_order );
         }
         { was_running } {
-            this.run( params, server_target, server_order );
+            this.run( server_target, server_order );
         };
     }
 
-    source { ^source.copy }
+    map { arg ...parameters;
+        parameters.pairsDo { arg param, value;
+            var old_source, new_source;
 
-    source_ { arg object;
-        var old_source;
-        if (source == object) { ^this };
-        remove_source_dependence.value;
-        source = object;
-        if (running) {
-            remap.value;
-            make_source_dependence.value;
-        }
+            old_source = mappings[param];
+            if (old_source.isArray) { old_source = old_source[0] };
+            if (old_source.respondsTo(\bus)) { old_source.removeDependant(this) };
+
+            if (value.isArray and: {
+                (value.size < 1)
+                or: {value[0].isNil}
+                or: {not( value[0].respondsTo(\bus) )}
+            }) {
+                warn("NodeProxy2: invalid mapping for '%'".format(param));
+                value = nil;
+            };
+
+            mappings[param] = value;
+
+            if (running) {
+                new_source = value;
+                if (new_source.isArray) { new_source = new_source[0] };
+                if (new_source.respondsTo(\bus)) { new_source.addDependant(this) };
+            }
+        };
+
+        remap.value;
     }
 
-    setAll { arg def_, source_;
-        var sdef, was_running, was_playing, params;
-
-        sdef = make_synth_def.value(def_);
-
-        was_running = running;
-        was_playing = playing;
-        params = synth_params.asKeyValuePairs;
-
-        this.stop;
-
-        def = def_;
-        synth_def = sdef;
-        this.source = source_;
-
-        case
-        { was_playing } {
-            this.play( public_bus_index, params, server_target, server_order );
-        }
-        { was_running } {
-            this.run( params, server_target, server_order );
-        };
+    unmapAll {
+        remove_all_source_dependences.value;
+        mappings.clear;
+        remap.value;
     }
 
     numChannels { ^synth_def.numChannels }
 
     rate { ^synth_def.rate }
 
-    parameters { ^synth_params.asKeyValuePairs }
-
-    run { arg parameters, target, order;
+    run { arg target, order;
         var args, play_bundle, play_target, play_order;
 
         if (running) {
-            this.set(*parameters);
             ^this;
         };
 
@@ -258,40 +286,29 @@ NodeProxy2 {
             args = args ++ [\out, bus.index]
         };
 
-        args = args ++ parameters;
-
         synth = Synth.basicNew(synth_def.name, server);
 
         play_bundle = List[nil]; // nil == the bundle time;
         play_bundle.add( synth.newMsg(play_target, args, play_order) );
-        play_bundle.addAll( map_source_msg_bundle.value(synth) );
+        play_bundle.addAll( make_map_msg.value(synth) );
 
         synth_def.send(server, play_bundle.array);
 
         CmdPeriod.add(this);
 
-        make_source_dependence.value;
+        make_all_source_dependences.value;
 
         running = true;
-
-        synth_params.putPairs( parameters );
 
         this.changed(\bus);
     }
 
-    set { arg ...parameters;
-        if (running && (parameters.size > 0)) {
-            synth.set(*parameters);
-            synth_params.putPairs( parameters );
-        };
-    }
-
-    play { arg bus_index = (0), parameters, target, order;
+    play { arg bus_index = (0), target, order;
         var synth_func;
 
         public_bus_index = bus_index;
 
-        this.run(parameters, target, order);
+        this.run(target, order);
 
         if (playing) {
             public_synth.set(*[out: public_bus_index]);
@@ -335,13 +352,9 @@ NodeProxy2 {
     }
 
     update { arg object, what;
-        if (source === object or: {
-            source.isArray and: { source.includes(object) }
-        }) {
-            what.switch (
-                \bus, remap
-            );
-        }
+        what.switch (
+            \bus, remap
+        );
     }
 
     node {
