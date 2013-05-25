@@ -12,7 +12,7 @@ PatchEnvironment : EnvironmentRedirect
 				cur_value.def = value.def;
 				^cur_value;
 			}{
-				value = NodeProxy2 (value.def);
+				value = NodeProxy2 (key, value.def);
 				envir.put(key, value);
 				^value;
 			}

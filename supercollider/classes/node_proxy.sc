@@ -1,7 +1,7 @@
 NodeProxy2 {
     classvar link_group;
 
-    var <def, source;
+    var <>name, <def, source;
     var <bus, synth_def, synth_params, synth;
     var <server, server_target, server_order;
     var public_synth_def, public_synth, public_bus_index;
@@ -12,8 +12,8 @@ NodeProxy2 {
     map_source_msg_bundle, remap,
     cleanup;
 
-    *new { arg def, source;
-        ^super.newCopyArgs(nil, source).init(def);
+    *new { arg name, def, source;
+        ^super.newCopyArgs(name, nil, source).init(def);
     }
 
     *initClass {
@@ -247,7 +247,8 @@ NodeProxy2 {
 
         server = play_target.server;
 
-        synth_def.name = server.clientID.asString ++ "_proxy_" ++ this.identityHash.abs;
+        synth_def.name = name !? { name.asString } ?? { "proxy"}
+        ++ $_ ++  server.clientID.asString ++ this.identityHash.abs;
 
         if (this.numChannels > 0) {
             bus = Bus.alloc(this.rate, server, this.numChannels);
