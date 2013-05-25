@@ -351,6 +351,13 @@ NodeProxy2 {
         }
     }
 
+    silence {
+        if (playing) {
+            public_synth.free;
+            playing = false;
+        }
+    }
+
     update { arg object, what;
         what.switch (
             \bus, remap
