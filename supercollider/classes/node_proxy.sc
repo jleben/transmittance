@@ -1,8 +1,9 @@
 NodeProxy2 {
     classvar link_group;
 
-    var <def, source, <server;
+    var <def, source;
     var <bus, synth_def, synth_params, synth;
+    var <server, server_target, server_order;
     var public_synth_def, public_synth, public_bus_index;
     var <running = false, <playing = false;
     ///
@@ -11,8 +12,8 @@ NodeProxy2 {
     map_source_msg_bundle, remap,
     cleanup;
 
-    *new { arg def, source, server = (Server.default);
-        ^super.newCopyArgs(nil, source, server).init(def);
+    *new { arg def, source;
+        ^super.newCopyArgs(nil, source).init(def);
     }
 
     *initClass {
@@ -37,9 +38,11 @@ NodeProxy2 {
 
     init { arg def_;
 
-        make_synth_def = { arg function, server;
+        make_synth_def = { arg function;
             ProxySynthDef2 (
-                server.clientID.asString ++ "_proxy_" ++ this.identityHash.abs,
+                // set name later, when running
+                //server.clientID.asString ++ "_proxy_" ++ this.identityHash.abs,
+                nil,
                 function
             )
         };
@@ -160,7 +163,7 @@ NodeProxy2 {
     def_ { arg function;
         var sdef, was_running, was_playing, params;
 
-        sdef = make_synth_def.value(function, server);
+        sdef = make_synth_def.value(function);
 
         def = function;
         synth_def = sdef;
@@ -173,10 +176,10 @@ NodeProxy2 {
 
         case
         { was_playing } {
-            this.play( public_bus_index, *params );
+            this.play( public_bus_index, params, server_target, server_order );
         }
         { was_running } {
-            this.run( *params );
+            this.run( params, server_target, server_order );
         };
     }
 
@@ -193,10 +196,10 @@ NodeProxy2 {
         }
     }
 
-    setAll { arg def_, source_, server_ = (Server.default);
+    setAll { arg def_, source_;
         var sdef, was_running, was_playing, params;
 
-        sdef = make_synth_def.value(def_, server_);
+        sdef = make_synth_def.value(def_);
 
         was_running = running;
         was_playing = playing;
@@ -204,17 +207,16 @@ NodeProxy2 {
 
         this.stop;
 
-        server = server_;
         def = def_;
         synth_def = sdef;
         this.source = source_;
 
         case
         { was_playing } {
-            this.play( public_bus_index, *params );
+            this.play( public_bus_index, params, server_target, server_order );
         }
         { was_running } {
-            this.run( *params );
+            this.run( params, server_target, server_order );
         };
     }
 
@@ -224,17 +226,28 @@ NodeProxy2 {
 
     parameters { ^synth_params.asKeyValuePairs }
 
-    run { arg ...parameters;
-        var args, server_target, server_add_action, play_bundle;
+    run { arg parameters, target, order;
+        var args, play_bundle, play_target, play_order;
 
         if (running) {
             this.set(*parameters);
             ^this;
         };
 
-        // FIXME: Node order
-        server_target = server.defaultGroup;
-        server_add_action = 'addToHead';
+        server_target = target;
+        server_order = order;
+
+        if (target.class === NodeProxy2) {
+            play_target = target.node
+        }{
+            play_target = target ?? { Server.default.defaultGroup };
+        };
+
+        play_order = order ? 'addToHead';
+
+        server = play_target.server;
+
+        synth_def.name = server.clientID.asString ++ "_proxy_" ++ this.identityHash.abs;
 
         if (this.numChannels > 0) {
             bus = Bus.alloc(this.rate, server, this.numChannels);
@@ -246,7 +259,7 @@ NodeProxy2 {
         synth = Synth.basicNew(synth_def.name, server);
 
         play_bundle = List[nil]; // nil == the bundle time;
-        play_bundle.add( synth.newMsg(server_target, args, server_add_action) );
+        play_bundle.add( synth.newMsg(play_target, args, play_order) );
         play_bundle.addAll( map_source_msg_bundle.value(synth) );
 
         synth_def.send(server, play_bundle.array);
@@ -269,12 +282,12 @@ NodeProxy2 {
         };
     }
 
-    play { arg bus_index = (0) ...parameters;
+    play { arg bus_index = (0), parameters, target, order;
         var synth_func;
 
         public_bus_index = bus_index;
 
-        this.run(*parameters);
+        this.run(parameters, target, order);
 
         if (playing) {
             public_synth.set(*[out: bus_index]);
