@@ -12,7 +12,7 @@ PatchEnvironment : EnvironmentRedirect
 				cur_value.def = value.def;
 				^cur_value;
 			}{
-				value = NodeProxy2 (key.asString ++ $_ ++ this.identityHash.abs, value.def);
+				value = NodeProxy2 (key.asString, value.def);
 				envir.put(key, value);
 				^value;
 			}
