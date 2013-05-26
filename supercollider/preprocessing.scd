@@ -1,5 +1,5 @@
 (
-var group = Group(Server.default, 'addBefore');
+var group;
 
 ~bee = MiniBee(id:2, numChannels: 3);
 
@@ -59,9 +59,13 @@ var group = Group(Server.default, 'addBefore');
 };
 ~trigger.map(\energy, [~preproc_func, 3], \scaled, ~scaled);
 
-~bee.run;
-~preproc_func.run;
-~scaled.run(group);
-~tilt.run(~scaled, 'addAfter');
-~trigger.run(~scaled, 'addAfter');
+~run_preprocessing = {
+    group = Group(Server.default, 'addBefore');
+    ~bee.run;
+    ~preproc_func.run;
+    ~scaled.run(group);
+    ~tilt.run(~scaled, 'addAfter');
+    ~trigger.run(~scaled, 'addAfter');
+};
+
 )
