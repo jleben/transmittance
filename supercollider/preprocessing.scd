@@ -3,47 +3,57 @@ var group;
 
 ~bee = MiniBee(id:2, numChannels: 3);
 
-~preproc_func = FuncDef ({ arg x, y, z;
-    var raw, energy;
+~basic = FuncDef ({ arg x, y, z;
+    var raw, magnitude;
 
     raw = [x,y,z] - 0.5;
 
-    energy = raw.squared.sum;
+    magnitude = raw.squared.sum;
 
-    raw ++ energy;
+    raw ++ magnitude;
 }, 4);
-~preproc_func.source = ~bee;
+~basic.source = ~bee;
 
-~scaled = NodeDef { arg x, y, z, energy;
-    var coeff = 15;
-    var in = [x, y, z, energy];
-    in = in * coeff;
+~vector_scaled = NodeDef { arg x, y, z, magnitude, scale = 15;
+    var in = [x, y, z, magnitude];
+    in = in * scale;
     in = in / (1 + (in * in)).sqrt;
 };
-~scaled.map(0, ~preproc_func);
+~vector_scaled.map(0, ~basic);
 
-~tilt = NodeDef { arg x, y, z;
-    LPF.kr( [x,y,z], 0.5 );
+~vector_slow = NodeDef { arg x, y, z, cutoff = 0.5;
+    LPF.kr( [x,y,z], cutoff );
 };
-~tilt.map(0, [~scaled, 0, 3]);
+~vector_slow.map(0, [~vector_scaled, 0, 3]);
 
-~trigger = NodeDef { arg energy, scaled = #[0,0,0,0];
-    var trigger_threshold = 0.015;
+~vector_smooth = NodeDef { arg x, y, z, mag, cutoff = 15;
+    LPF.kr( [x,y,z,mag], cutoff );
+};
+~vector_smooth.map(0, ~vector_scaled);
 
-    var energy1, scaled1;
+~busy = NodeDef { arg x, y, z, grow = 0.1, attack = 1.5, decay = 10;
+    var in, out;
+    in = [x,y,z];
+    in = (in - Delay1.kr(in)).abs.sum * grow;
+    out = Decay2.kr(in, attack, decay).min(1.0);
+};
+~busy.map(0, [~basic, 0, 3]);
+
+~trigger = NodeDef { arg magnitude, scaled = #[0,0,0,0], threshold = 0.02;
+    var magnitude1, scaled1;
 
     var thresh_in, thresh_out, trigger;
 
 
-    energy1 = Delay1.kr(energy);
+    magnitude1 = Delay1.kr(magnitude);
     scaled1 = Delay1.kr(scaled);
 
     // Trigger
 
     thresh_in = LocalIn.kr(1);
 
-    trigger = (energy < energy1)
-    * ((energy1  * (1 - thresh_in)) > trigger_threshold )
+    trigger = (magnitude < magnitude1)
+    * ((magnitude1  * (1 - thresh_in)) > threshold )
     ;
 
     thresh_out =
@@ -57,15 +67,17 @@ var group;
 
     [trigger] ++ scaled1;
 };
-~trigger.map(\energy, [~preproc_func, 3], \scaled, ~scaled);
+~trigger.map(\magnitude, [~basic, 3], \scaled, ~vector_scaled);
 
 ~run_preprocessing = {
     group = Group(Server.default, 'addBefore');
     ~bee.run;
-    ~preproc_func.run;
-    ~scaled.run(group);
-    ~tilt.run(~scaled, 'addAfter');
-    ~trigger.run(~scaled, 'addAfter');
+    ~basic.run;
+    ~vector_scaled.run(group);
+    ~vector_slow.run(~vector_scaled, 'addAfter');
+    ~vector_smooth.run(~vector_scaled, 'addAfter');
+    ~busy.run(group);
+    ~trigger.run(~vector_scaled, 'addAfter');
 };
 
 )
