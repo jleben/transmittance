@@ -25,7 +25,9 @@ NodeProxy2 {
     }
 
     *linkGroup {
-        if (link_group.isNil) { link_group = Group(addAction:'addToTail') };
+        if (link_group.isNil) {
+            link_group = Group(Server.default.defaultGroup, addAction:'addAfter')
+        };
         ^link_group;
     }
 
