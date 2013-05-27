@@ -95,7 +95,7 @@ NodeProxy2 {
                         "/n_set",
                         node.nodeID,
                         key,
-                        src
+                        src.asControlInput
                     ])
                 }
             };
