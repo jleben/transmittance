@@ -2,10 +2,10 @@ SynthProxy {
     classvar link_group;
 
     var <>name, init_func, run_func, stop_func, <def;
-    var <mappings, environment;
+    var <mappings, environment, <>controls;
     var <bus, synth_def;
     var <server, server_target, server_order;
-    var public_synth_def, public_synth, public_bus_index;
+    var public_synth_def, public_synth, public_bus_index, <volume = 1.0;
     var <running = false, <playing = false;
     ///
     var cleanup;
@@ -130,13 +130,13 @@ SynthProxy {
                 \audio, {
                     play_def_name = "audio_proxy_player_" ++ num_channels;
                     play_def = SynthDef(play_def_name, {
-                        Out.ar( \out.kr, In.ar(\bus.ir, num_channels) )
+                        Out.ar( \out.kr, In.ar(\bus.ir, num_channels) * \volume.kr )
                     })
                 },
                 \control, {
                     play_def_name = "control_proxy_player_" ++ num_channels;
                     play_def = SynthDef(play_def_name, {
-                        Out.ar( \out.kr, K2A.ar( In.kr(\bus.ir, num_channels) ) )
+                        Out.ar( \out.kr, K2A.ar( In.kr(\bus.ir, num_channels) * \volume.kr ) )
                     });
                 }
             );
@@ -144,7 +144,7 @@ SynthProxy {
             if (play_def.notNil) {
                 public_synth = play_def.play (
                     NodeProxy2.linkGroup,
-                    args: [out: public_bus_index, bus: in_bus_index]
+                    args: [out: public_bus_index, bus: in_bus_index, volume: volume]
                 );
                 playing = true;
             }{
@@ -153,6 +153,11 @@ SynthProxy {
         }{
             warn("Processor: trying to play, but have no output!")
         }
+    }
+
+    volume_ { arg value;
+        volume = value.clip(0,1).pow(3);
+        if (playing) { public_synth.set(\volume, volume) };
     }
 
     event { ^ (instrument: name, out: bus).proto_(mappings) }
