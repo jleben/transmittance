@@ -253,6 +253,20 @@ NodeProxy2 {
         remap.value;
     }
 
+    get { arg key;
+        var value = mappings.at(key);
+        if (value.isNil) {
+            var ctl = synth_def.allControlNames.detect { |c| c.name === key };
+            if (ctl.notNil) { value = ctl.defaultValue };
+        }
+        ^value;
+    }
+
+    set { arg key, value;
+        mappings.put(key, value);
+        if (running) { synth.set(key, value) };
+    }
+
     numChannels { ^synth_def.numChannels }
 
     rate { ^synth_def.rate }

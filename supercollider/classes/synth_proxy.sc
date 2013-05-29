@@ -77,6 +77,15 @@ SynthProxy {
         mappings.put(key, value);
     }
 
+    get { arg key;
+        var value = mappings.at(key);
+        if (value.isNil) {
+            var ctl = synth_def.allControlNames.detect { |c| c.name === key };
+            if (ctl.notNil) { value = ctl.defaultValue };
+        }
+        ^value;
+    }
+
     run {
         var server = Server.default;
 
