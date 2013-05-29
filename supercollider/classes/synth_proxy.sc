@@ -144,7 +144,7 @@ SynthProxy {
             if (play_def.notNil) {
                 public_synth = play_def.play (
                     NodeProxy2.linkGroup,
-                    args: [out: public_bus_index, bus: in_bus_index, volume: volume]
+                    args: [out: public_bus_index, bus: in_bus_index, volume: volume.squared]
                 );
                 playing = true;
             }{
@@ -156,8 +156,8 @@ SynthProxy {
     }
 
     volume_ { arg value;
-        volume = value.clip(0,1).pow(3);
-        if (playing) { public_synth.set(\volume, volume) };
+        volume = value.clip(0,1);
+        if (playing) { public_synth.set(\volume, volume.squared) };
     }
 
     event { ^ (instrument: name, out: bus).proto_(mappings) }
