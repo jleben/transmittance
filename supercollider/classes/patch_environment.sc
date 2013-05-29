@@ -1,5 +1,9 @@
 PatchEnvironment : EnvironmentRedirect
 {
+	*new { arg parent;
+		^super.new( Environment.new(proto:parent) )
+	}
+
 	put { arg key, value;
 		var cur_value;
 		cur_value = envir.at(key);
