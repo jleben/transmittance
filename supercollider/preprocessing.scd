@@ -80,4 +80,14 @@ var group;
     ~trigger.run(~vector_scaled, 'addAfter');
 };
 
+~stop_preprocessing = {
+	~trigger.stop;
+	~busy.stop;
+	~vector_smooth.stop;
+	~vector_slow.stop;
+	~vector_scaled.stop;
+	~basic.stop;
+	~bee.stop;
+	if (group.notNil) { group.free };
+};
 )
