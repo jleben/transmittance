@@ -233,25 +233,29 @@ NodeProxy2 {
             if (old_source.isArray) { old_source = old_source[0] };
             old_source.removeDependant(this);
 
-
-            if (
-                value.isArray
-                and: {
+            if (value.isArray) {
+                if (
                     (value.size < 1)
                     or: { value[0].isNil }
                     or: { not(value[0].respondsTo(\bus)) }
+                ) {
+                    warn("NodeProxy2: invalid mapping for '%'".format(param));
+                    value = nil;
+                } {
+                    new_source = value[0];
                 }
-                or: { not(value.respondsTo(\bus)) }
-            ) {
-                warn("NodeProxy2: invalid mapping for '%'".format(param));
-                value = nil;
+            }{
+                if (not(value.respondsTo(\bus))) {
+                    warn("NodeProxy2: invalid mapping for '%'".format(param));
+                    value = nil;
+                }{
+                    new_source = value;
+                }
             };
 
             mappings[param] = value;
 
-            if (running) {
-                new_source = value;
-                if (new_source.isArray) { new_source = new_source[0] };
+            if (running && new_source.notNil) {
                 new_source.addDependant(this);
             }
         };
