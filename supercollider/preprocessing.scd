@@ -1,7 +1,7 @@
 (
 var group;
 
-~bee = MiniBee(id:2, numChannels: 3);
+~bee = MiniBee(id: ~minibee_id, numChannels: 3);
 
 ~basic = FuncDef ({ arg x, y, z;
     var raw, magnitude;

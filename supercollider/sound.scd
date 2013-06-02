@@ -109,12 +109,12 @@ Količina gibanja => hitrost premikanja center position po sample-u.
 );
 
 (
-~grain_reveal.map(\buf, ~bufs[\dvorak11]);
 ~grain_reveal.map(\in, [~basic, 3, 1]);
 ~grain_reveal.controls = IdentityDictionary[
 	\interval -> [0.01, 0.1, \exp],
 	\dur -> [0.05, 0.2, \exp]
-]
+];
+~grain_reveal.set(\buf, ~bufs[\dvorak11]);
 );
 
 /************************************
@@ -153,8 +153,8 @@ Granular Integration
 };
 );
 (
-~grain_integrate.map(\buf, ~bufs[\dvorak12]);
 ~grain_integrate.map(\in, [~basic, 3, 1]);
+~grain_integrate.set(\buf, ~bufs[\dvorak12]);
 );
 
 /************************************
@@ -194,8 +194,8 @@ Granular Disintegration
 };
 );
 (
-~grain_disintegrate.map(\buf, ~bufs[\dvorak12]);
 ~grain_disintegrate.map(\in, [~basic, 3, 1]);
+~grain_disintegrate.set(\buf, ~bufs[\dvorak12]);
 );
 
 
@@ -238,8 +238,8 @@ large predelay (ghost trail, magic)
 };
 );
 (
-~grain_trigger_env.map(\buf, ~bufs[\dvorak10]);
 ~grain_trigger_env.map(\trigger, [~trigger, 0]);
+~grain_trigger_env.set(\buf, ~bufs[\dvorak10]);
 );
 
 /************************************
@@ -311,10 +311,10 @@ Distance
     x = LPF.ar(x, gesture.linexp(0,1,700,20000));
     x = x * (gesture.min(0.2) + 0.8);
 };
-~distance.map(
-    \buf, ~bufs[\pinkola_trigger],
-    \energy, [~vector_smooth, 3, 1]
 );
+(
+~distance.map(\energy, [~vector_smooth, 3, 1]);
+~distance.set(\buf, ~bufs[\pinkola_trigger]);
 );
 
 /************************************
@@ -334,10 +334,8 @@ Distortion
 );
 
 (
-~distort.map(
-    \buf, ~bufs[\levy_sexualized],
-    \x, ~vector_smooth
-);
+~distort.map(\x, ~vector_smooth);
+~distort.set(\buf, ~bufs[\levy_sexualized])
 );
 
 /************************************
@@ -366,12 +364,14 @@ tilt => pick one loud
 );
 (
 ~crowd.map(
+    \vector, [~vector_smooth, 0, 3],
+    \energy_in, [~basic, 3, 1]
+);
+~crowd.set(
     \buf1, ~bufs[\pinkola_not_like], \amp1, 1,
     \buf2, ~bufs[\pinkola_trigger], \amp2, 1,
     \buf3, ~bufs[\levy_bunny], \amp3, 0.7,
-    \vector, [~vector_smooth, 0, 3],
-    \energy_in, [~basic, 3, 1]
-)
+);
 );
 
 /************************************
@@ -420,10 +420,10 @@ x -> granular pitch
 );
 (
 ~stretch_trigger.map(
-    \buf, ~bufs[\levy_bunny],
     \trigger, [~trigger, 0, 3],
     \x, [~vector_smooth, 0, 3]
-)
+);
+~stretch_trigger.set(\buf, ~bufs[\levy_bunny]);
 );
 
 /************************************
@@ -454,13 +454,11 @@ tilt => stretch (grain buffer pos increment)
         0.5
     )
 };
-)
+);
 
 (
-~stretch_tilt.map(
-    \buf, ~bufs[\levy_sexualized],
-    \in, [~vector_smooth, 0, 1]
-)
+~stretch_tilt.map( \in, [~vector_smooth, 0, 1] );
+~stretch_tilt.set( \buf, ~bufs[\levy_sexualized] );
 )
 
 /************************************

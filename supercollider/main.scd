@@ -1,17 +1,5 @@
 
-Server.default.options.numOutputBusChannels = 6;
 ~dir = PathName(thisProcess.nowExecutingPath).pathOnly;
-
-~preproc_envir = PatchEnvironment(currentEnvironment);
-(
-~preproc_envir.push;
-protect {
-    this.executeFile(~dir +/+ "preprocessing.scd");
-}{
-    Environment.pop;
-}
-);
-
 
 /************************************
 Load Buffers
@@ -33,18 +21,22 @@ Load Buffers
 };
 );
 
+
+/************************************
+MiniBee preprocessing
+************************************/
+
+~bee2 = PatchEnvironment(currentEnvironment);
+~bee2[\minibee_id] = 2;
+~bee2.use { this.executeFile(~dir +/+ "preprocessing.scd"); };
+
+
 /************************************
 Define sounds
 *************************************/
-~sound_envir=PatchEnvironment(~preproc_envir.envir);
-(
-~sound_envir.push;
-protect {
-    this.executeFile(~dir +/+ "sound.scd");
-}{
-    Environment.pop;
-}
-);
+
+~sound_envir = PatchEnvironment(~bee2.envir);
+~sound_envir.use { this.executeFile(~dir +/+ "sound.scd"); };
 
 /***********************************
 Make GUI
@@ -56,7 +48,7 @@ Make GUI
     ["ON", Color.white, Color.green(0.6)]
 ];
 ~toggle_preprocessing_btn.action = { arg x;
-    ~preproc_envir.use {
+    ~bee2.use {
         x.value.switch(
             1, ~run_preprocessing,
             0, ~stop_preprocessing
