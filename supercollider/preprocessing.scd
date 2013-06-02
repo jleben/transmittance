@@ -31,14 +31,6 @@ var group;
 };
 ~vector_smooth.map(0, ~vector_scaled);
 
-~busy = NodeDef { arg x, y, z, grow = 0.1, attack = 1.5, decay = 10;
-    var in, out;
-    in = [x,y,z];
-    in = (in - Delay1.kr(in)).abs.sum * grow;
-    out = Decay2.kr(in, attack, decay).min(1.0);
-};
-~busy.map(0, [~basic, 0, 3]);
-
 ~trigger = NodeDef { arg magnitude, scaled = #[0,0,0,0], threshold = 0.02;
     var magnitude1, scaled1;
 
@@ -69,6 +61,7 @@ var group;
 };
 ~trigger.map(\magnitude, [~basic, 3], \scaled, ~vector_scaled);
 
+
 ~run_preprocessing = {
     group = Group(Server.default, 'addBefore');
     ~bee.run;
@@ -76,13 +69,11 @@ var group;
     ~vector_scaled.run(group);
     ~vector_slow.run(~vector_scaled, 'addAfter');
     ~vector_smooth.run(~vector_scaled, 'addAfter');
-    ~busy.run(group);
     ~trigger.run(~vector_scaled, 'addAfter');
 };
 
 ~stop_preprocessing = {
 	~trigger.stop;
-	~busy.stop;
 	~vector_smooth.stop;
 	~vector_slow.stop;
 	~vector_scaled.stop;
