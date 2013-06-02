@@ -2,7 +2,7 @@ NodeProxy2 {
     classvar link_group;
 
     var <>name, <def;
-    var <mappings, <>controls;
+    var <mappings, <settings, <>controls;
     var <bus, synth_def, synth;
     var <server, server_target, server_order;
     var public_synth_def, public_synth, public_bus_index, <volume = 1.0;
@@ -11,6 +11,7 @@ NodeProxy2 {
     var make_synth_def,
     make_all_source_dependences, remove_all_source_dependences,
     make_map_msg, make_map_bus_msg, remap,
+    make_set_msg,
     cleanup;
 
     *new { arg name, def;
@@ -53,14 +54,14 @@ NodeProxy2 {
         make_all_source_dependences = {
             mappings.do { |mapping|
                 if (mapping.isArray) { mapping = mapping[0] };
-                if (mapping.respondsTo(\bus), mapping.addDependant(this));
+                mapping.addDependant(this);
             }
         };
 
         remove_all_source_dependences = {
             mappings.do { |mapping|
                 if (mapping.isArray) { mapping = mapping[0] };
-                if (mapping.respondsTo(\bus), mapping.removeDependant(this));
+                mapping.removeDependant(this);
             }
         };
 
@@ -84,20 +85,11 @@ NodeProxy2 {
                 } {
                     src = mapping;
                     map_index = 0;
-                    map_channels = if (src.respondsTo(\bus), { src.numChannels }, 1);
+                    map_channels = src.numChannels;
                 };
 
-                if (src.respondsTo(\bus)) {
-                    msg = make_map_bus_msg.value(node, key, src, map_index, map_channels);
-                    if (msg.notNil) { bundle.add(msg) };
-                }{
-                    bundle.add([
-                        "/n_set",
-                        node.nodeID,
-                        key,
-                        src.asControlInput
-                    ])
-                }
+                msg = make_map_bus_msg.value(node, key, src, map_index, map_channels);
+                if (msg.notNil) { bundle.add(msg) };
             };
 
             bundle.array; // return
@@ -169,6 +161,20 @@ NodeProxy2 {
             msg // return
         };
 
+        make_set_msg = { arg node;
+            var list = List();
+            settings.keysValuesDo { |key, setting|
+                list.add([
+                    "/n_set",
+                    node.nodeID,
+                    key,
+                    setting.asControlInput
+                ])
+            };
+            // return
+            list.array;
+        };
+
         remap = {
             var map_msg;
             if (running) {
@@ -193,6 +199,7 @@ NodeProxy2 {
         };
 
         mappings = IdentityDictionary();
+        settings = IdentityDictionary();
         this.def = def_;
     }
 
@@ -224,13 +231,18 @@ NodeProxy2 {
 
             old_source = mappings[param];
             if (old_source.isArray) { old_source = old_source[0] };
-            if (old_source.respondsTo(\bus)) { old_source.removeDependant(this) };
+            old_source.removeDependant(this);
 
-            if (value.isArray and: {
-                (value.size < 1)
-                or: {value[0].isNil}
-                or: {not( value[0].respondsTo(\bus) )}
-            }) {
+
+            if (
+                value.isArray
+                and: {
+                    (value.size < 1)
+                    or: { value[0].isNil }
+                    or: { not(value[0].respondsTo(\bus)) }
+                }
+                or: { not(value.respondsTo(\bus)) }
+            ) {
                 warn("NodeProxy2: invalid mapping for '%'".format(param));
                 value = nil;
             };
@@ -240,7 +252,7 @@ NodeProxy2 {
             if (running) {
                 new_source = value;
                 if (new_source.isArray) { new_source = new_source[0] };
-                if (new_source.respondsTo(\bus)) { new_source.addDependant(this) };
+                new_source.addDependant(this);
             }
         };
 
@@ -254,7 +266,7 @@ NodeProxy2 {
     }
 
     get { arg key;
-        var value = mappings.at(key);
+        var value = settings.at(key);
         if (value.isNil) {
             var ctl = synth_def.allControlNames.detect { |c| c.name === key };
             if (ctl.notNil) { value = ctl.defaultValue };
@@ -263,8 +275,12 @@ NodeProxy2 {
     }
 
     set { arg key, value;
-        mappings.put(key, value);
+        settings.put(key, value);
         if (running) { synth.set(key, value) };
+    }
+
+    unsetAll {
+        settings.clear;
     }
 
     numChannels { ^synth_def.numChannels }
@@ -307,6 +323,7 @@ NodeProxy2 {
         play_bundle = List[nil]; // nil == the bundle time;
         play_bundle.add( synth.newMsg(play_target, args, play_order) );
         play_bundle.addAll( make_map_msg.value(synth) );
+        play_bundle.addAll( make_set_msg.value(synth) );
 
         synth_def.send(server, play_bundle.array);
 
