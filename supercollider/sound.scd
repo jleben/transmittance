@@ -70,12 +70,25 @@ Grainular FM:
 /************************************
 Granular, Bring up volume by movement
 movement => raise amp, filter
+
+ADD:
+tilt => center position
+Količina gibanja => hitrost premikanja center position po sample-u.
 *************************************/
 
+
 (
-~grain_reveal = NodeDef { arg buf, interval = 0.02, dur = 0.1, movement;
-    var x;
-    x = GrainBuf.ar (
+~grain_reveal = NodeDef {
+    arg buf, interval = 0.02, dur = 0.1,
+    threshold = 0.002, grow = 0.7, attack = 3, decay = 15,
+    in;
+
+    var energy, sound;
+
+    energy = (in - threshold).max(0) * grow;
+    energy = Decay2.kr(energy, attack, decay).min(1.0);
+
+    sound = GrainBuf.ar (
         2,
         TDuty.ar(Dwhite(interval * 0.3, interval * 1.8)),
         dur,
@@ -83,7 +96,7 @@ movement => raise amp, filter
         BufRateScale.ir(buf),
         LFNoise1.kr(0.5) * 0.5 + 0.5;
     );
-    x = LPF.ar( x, movement.pow(4) * 20000 + 200 ) * ((movement * 4).min(1) + 0.01) * 0.2;
+    sound = LPF.ar( sound, energy.pow(4) * 20000 + 200 ) * ((energy * 4).min(1) + 0.01) * 0.2;
     // Reverse filter and amp:
     /*
     x = (
@@ -93,8 +106,11 @@ movement => raise amp, filter
     )
     */
 };
-~grain_reveal.map(\buf, ~bufs[\dvorak10]);
-~grain_reveal.map(\movement, [~busy, 0]);
+);
+
+(
+~grain_reveal.map(\buf, ~bufs[\dvorak11]);
+~grain_reveal.map(\in, [~basic, 3, 1]);
 ~grain_reveal.controls = IdentityDictionary[
 	\interval -> [0.01, 0.1, \exp],
 	\dur -> [0.05, 0.2, \exp]
@@ -102,39 +118,126 @@ movement => raise amp, filter
 );
 
 /************************************
-Granular, Trigger Amp (Freq?) Envelope
-trigger => start envelope
-trigger => choose rand pos
+Granular Integration
+- movement => integrate
+- slow rand pos
 *************************************/
-
 (
-~grain_trigger_env = NodeDef { arg buf, interval = 0.02, dur = 0.1, trigger;
-    var x;
+~grain_integrate = NodeDef {
+    arg buf,
+    threshold = 0.002, grow = 0.7, attack = 3, decay = 15,
+    in;
+
+    var energy, interval, dur, x;
+
+    energy = (in - threshold).max(0) * grow;
+    energy = Decay2.kr(energy, attack, decay).min(1.0);
+
+    interval = (1 - energy) * 0.07  + 0.02;
+    dur = 0.005 + (energy.squared * 0.4);
+
     x = GrainBuf.ar (
         2,
         TDuty.ar(Dwhite(interval * 0.3, interval * 1.8)),
         dur,
         buf,
         BufRateScale.ir(buf),
-        Latch.kr( WhiteNoise.kr() * 0.5 + 0.5, trigger);
+        LFNoise1.kr(0.1) * 0.5 + 0.5;
     );
-    x = x * EnvGen.ar( Env.linen(0.03, 0, 2), trigger, 0.5);
+    x = (
+        //LPF.ar( x, energy.pow(4) * 20000 + 600 )
+        HPF.ar( x, (1 - energy).pow(3) * 1500 + 50 )
+        * ((energy).min(1) + 0.4)
+        * 0.5
+    )
+};
+);
+(
+~grain_integrate.map(\buf, ~bufs[\dvorak12]);
+~grain_integrate.map(\in, [~basic, 3, 1]);
+);
+
+/************************************
+Granular Disintegration
+- movement => disintegrate
+- slow rand pos
+*************************************/
+(
+~grain_disintegrate = NodeDef {
+    arg buf,
+    interval_increase = 0.02,
+    threshold = 0.002, grow = 0.2, attack = 3, decay = 15,
+    in;
+
+    var energy, interval, dur, x;
+
+    energy = (in - threshold).max(0) * grow;
+    energy = Decay2.kr(energy, attack, decay).min(1.0);
+
+    interval = energy * interval_increase  + 0.03;
+    dur = 0.005 + ((1 - energy).pow(4) * 0.4);
+
+    x = GrainBuf.ar (
+        2,
+        TDuty.ar(Dwhite(interval * 0.3, interval * 1.8)),
+        dur,
+        buf,
+        BufRateScale.ir(buf),
+        LFNoise1.kr(0.1) * 0.5 + 0.5;
+    );
+    x = (
+        //LPF.ar( x, energy.pow(4) * 20000 + 600 )
+        HPF.ar( x, (energy).pow(3) * 1500 + 20 )
+        * (energy + 0.4)
+        * 0.5
+    )
+};
+);
+(
+~grain_disintegrate.map(\buf, ~bufs[\dvorak12]);
+~grain_disintegrate.map(\in, [~basic, 3, 1]);
+);
+
+
+/************************************
+Granular, Trigger Amp (Freq?) Envelope
+trigger => start envelope
+trigger => choose rand pos
+
+TRY:
+different envelopes
+large predelay (ghost trail, magic)
+*************************************/
+
+(
+~grain_trigger_env = NodeDef { arg buf, interval = 0.02, dur = 0.1, trigger;
+    var x;
+    x = TGrains.ar (
+        2,
+        TDuty.ar(Dwhite(interval * 0.3, interval * 1.8)),
+        buf,
+        BufRateScale.ir(buf),
+        Latch.kr( WhiteNoise.kr() * 0.4 + 0.5, trigger),
+        dur,
+        0.5,
+        EnvGen.kr( Env.linen(0, 0, 4), trigger).squared * 0.5
+    );
+    //x = x * ;
     // Reverse amp envelope:
     // x = x * (0.5 - EnvGen.ar( Env.linen(0.03, 0, 2), trigger, 0.5));
 
-    /*
-    Na trigger zamenjaj filter frekvenco.
-    Problem: preskok iz ene v drugo je slišen.
+    // Na trigger zamenjaj filter frekvenco:
+
     BPF.ar( x,
-        Lag.kr(
-            TRand.kr(0, 1, trigger).linexp(0,1,100, 15000),
-            1
-        ),
+        Ramp.kr(
+            TRand.kr(0, 1, trigger),
+            2
+        ).linexp(0,1,100, 15000),
         0.5
     );
-    */
-    //x = LPF.ar( x, movement.pow(4) * 20000 + 200 ) * ((movement * 4).min(1) + 0.01) * 0.2;
 };
+);
+(
 ~grain_trigger_env.map(\buf, ~bufs[\dvorak10]);
 ~grain_trigger_env.map(\trigger, [~trigger, 0]);
 );
@@ -166,34 +269,6 @@ OSCFunc({ arg trig;
 )
 */
 
-/************************************
-Granular Disintegration
-- slow rand pos
-- movement -> filter
-- movement -> dur
-*************************************/
-(
-~grain_disintegrate = NodeDef { arg buf, interval = 0.05, dur = 0.005, movement;
-    var x;
-    interval = (1 - movement).squared * 0.07  + 0.02;
-    x = GrainBuf.ar (
-        2,
-        TDuty.ar(Dwhite(interval * 0.3, interval * 1.8)),
-        dur + (movement * 0.4),
-        buf,
-        BufRateScale.ir(buf),
-        LFNoise1.kr(0.1) * 0.5 + 0.5;
-    );
-    x = (
-        //LPF.ar( x, movement.pow(4) * 20000 + 600 )
-        HPF.ar( x, (1 - movement).pow(3) * 1500 + 50 )
-        * ((movement * 1).min(1) + 0.4)
-        * 0.5
-    )
-};
-~grain_disintegrate.map(\buf, ~bufs[\dvorak12]);
-~grain_disintegrate.map(\movement, [~busy, 0]);
-);
 
 /**************************************
 Play patterns, control by movement
@@ -211,6 +286,7 @@ Play patterns, control by movement
 var pattern;
 var movement = 0.0;
 OSCdef(\pattern_control, { arg msg;
+	"bang".postln;
     movement = (msg[3] * 20 - 0.2).max(0).asInteger;
 }, "/movement");
 
@@ -223,29 +299,29 @@ pattern.play;
 */
 
 /************************************
-Speech - bring closer from distance
+Distance
 ************************************/
 
 (
-~speech_distance = NodeDef { arg buf, energy;
+~distance = NodeDef { arg buf, energy;
     var x, gesture;
-    gesture = LagUD.kr((energy * 3).min(1), 0.1, 5);
+    gesture = LagUD.kr((energy * 3).min(1), 0.1, 7);
     x = PlayBuf.ar(1, buf, loop:1);
     x = FreeVerb.ar(x, 0.9 - gesture.min(0.9), 0.2, 0);
     x = LPF.ar(x, gesture.linexp(0,1,700,20000));
     x = x * (gesture.min(0.2) + 0.8);
 };
-~speech_distance.map(
+~distance.map(
     \buf, ~bufs[\pinkola_trigger],
     \energy, [~vector_smooth, 3, 1]
 );
 );
 
 /************************************
-Speech - undistort
+Distortion
 ************************************/
 (
-~speech_distort = NodeDef { arg buf, x,y,z,energy;
+~distort = NodeDef { arg buf, x,y,z,energy;
     var a, b, gesture;
     gesture = LagUD.kr((energy - 0.1), 0.5, 5);
     a = PlayBuf.ar(1, buf, loop:1);
@@ -258,121 +334,54 @@ Speech - undistort
 );
 
 (
-~speech_distort.map(
+~distort.map(
     \buf, ~bufs[\levy_sexualized],
     \x, ~vector_smooth
 );
 );
 
 /************************************
-Speech Crowd
-busy => single loud <> all loud
+Crowd vs. Isolation
+movement => single loud <> all loud
 tilt => pick one loud
 ************************************/
 (
-~speech_crowd = NodeDef { arg buf1, buf2, buf3, vector = #[0,0,0], busy;
-    var a, b, amp;
+~crowd = NodeDef {
+    arg buf1, buf2, buf3, amp1 = 1, amp2 = 1, amp3 = 1,
+    threshold = 0.0018, grow = 0.8, attack = 0.5, decay = 7,
+    vector = #[0,0,0], energy_in;
+
+    var energy, a, b, amp;
+
+    energy = (energy_in - threshold).max(0) * grow;
+    energy = Decay2.kr(energy, attack, decay).min(1.0);
+
     a = PlayBuf.ar(1, [buf1, buf2, buf3], startPos: BufFrames.ir([buf1, buf2, buf3]) * 0.5, loop:1);
     b = PlayBuf.ar(1, [buf1, buf2, buf3], loop:1, );
-    amp = [1,1,0.5];
-    a = a * amp * ((busy - 0.1).max(0) * 2.5).min(1);
-    b = b * amp * ((vector.abs * 3).squared + ((busy - 0.1).max(0) * 2)).min(1);
+    amp = [amp1,amp2,amp3];
+    a = a * amp * ((energy - 0.1).max(0) * 1.5).min(1);
+    b = b * amp * ((vector.abs * 2).squared + ((energy - 0.1).max(0) * 1.5)).min(1);
     Mix.ar(a ++ b);
 }
 );
 (
-~speech_crowd.map(
-    \buf1, ~bufs[\pinkola_not_like],
-    \buf2, ~bufs[\pinkola_trigger],
-    \buf3, ~bufs[\levy_bunny],
+~crowd.map(
+    \buf1, ~bufs[\pinkola_not_like], \amp1, 1,
+    \buf2, ~bufs[\pinkola_trigger], \amp2, 1,
+    \buf3, ~bufs[\levy_bunny], \amp3, 0.7,
     \vector, [~vector_smooth, 0, 3],
-    \busy, ~busy
-
+    \energy_in, [~basic, 3, 1]
 )
 );
 
 /************************************
-Speech Crowd
-Trigger => make one loud
-Trigger Direction => choose which one
-************************************/
-
-(
-~speech_crowd_reverse = NodeDef { arg buf1, buf2, buf3, trigger, x, y, z;
-    var a, b, trig_x, trig_y, trig_z, envs, amps;
-    a = PlayBuf.ar(1, [buf1, buf2, buf3], loop:1, startPos: BufFrames.ir([buf1, buf2, buf3]) * 0.5 );
-    b = PlayBuf.ar(1, [buf1, buf2, buf3], loop:1 );
-    amps = [1,1,0.5];
-
-    TRand.kr(0,2, trigger);
-    x = x.abs;
-    y = y.abs;
-    z = z.abs;
-    trig_x = trigger * (x > y) * (x > z);
-    trig_y = trigger * (y > x) * (y > z);
-    trig_z = trigger * (z > x) * (z > y);
-
-    envs = Env([0,1,1,0],[0.5,2,2]).kr(gate: [trig_x, trig_y, trig_z]);
-    a = a * (envs + 0.05);
-    b = b * 0.05;
-    Mix.ar(a ++ b);
-}
-);
-(
-~speech_crowd_reverse.map(
-    \buf1, ~bufs[\pinkola_not_like],
-    \buf2, ~bufs[\pinkola_trigger],
-    \buf3, ~bufs[\levy_bunny],
-    \trigger, ~trigger,
-)
-);
-
-/************************************
-Speech Crowd
-busy => raise one random sample's volume
-************************************/
-
-(
-~speech_crowd_reverse_smooth = NodeDef { arg buf1, buf2, buf3, busy;
-    var a, b, xfade, envs, amps;
-    a = PlayBuf.ar(1, [buf1, buf2, buf3], loop:1, startPos: BufFrames.ir([buf1, buf2, buf3]) * 0.5 );
-    b = PlayBuf.ar(1, [buf1, buf2, buf3], loop:1 );
-
-    amps = [1,0.5,0.5];
-
-    //xfade = LFNoise1.kr(0.2) * 3 + 3;
-    xfade = Ramp.kr( TIRand.kr(0,2,Impulse.kr(0.3)), 0.5);
-    envs = [
-       (0 - xfade).abs,
-       (1 - xfade).abs,
-       (2 - xfade).abs,
-    ];
-    envs = (1 - (envs)).sqrt.max(0);
-
-    a = a * amps * 0.05;
-    b = Mix.ar( b * amps * (envs) )  * (busy.squared + 0.05);
-
-    Mix.ar(a ++ b);
-}
-);
-(
-~speech_crowd_reverse_smooth.map(
-    \buf1, ~bufs[\pinkola_trigger],
-    \buf2, ~bufs[\levy_sexualized],
-    \buf3, ~bufs[\levy_bunny],
-    \busy, ~busy,
-)
-);
-
-/************************************
-Toggle Granular:
+Granular Stretch by Trigger
 trigger -> toggle granular / normal
 x -> granular pitch
-
 ************************************/
 
 (
-~granulize_triggered = NodeDef { arg buf, trigger, x, y, z;
+~stretch_trigger = NodeDef { arg buf, trigger, x, y, z;
     var pos, switch, reader, trig_env, grains, grain_pitch, grain_speed;
 
     //env = Env([0,1,1,0], [0,3,0]).kr(gate: trigger);
@@ -410,9 +419,54 @@ x -> granular pitch
 }
 );
 (
-~granulize_triggered.map(
+~stretch_trigger.map(
     \buf, ~bufs[\levy_bunny],
     \trigger, [~trigger, 0, 3],
     \x, [~vector_smooth, 0, 3]
 )
 );
+
+/************************************
+Granular Stretch by Tilt
+tilt => stretch (grain buffer pos increment)
+*************************************/
+
+(
+~stretch_tilt = NodeDef {
+    arg buf,
+    interval = 0.02, dur = 0.1,
+    rate_scale = 2.5,
+    rate_offset = 0.2,
+    in;
+
+    var rate, sound;
+
+    rate = in * rate_scale + rate_offsetž;
+
+    sound = TGrains.ar (
+        2,
+        TDuty.ar(Dwhite(interval * 0.3, interval * 1.8)),
+        buf,
+        BufRateScale.ir(buf),
+        Phasor.ar(0, rate, 0, BufFrames.ir(buf), 0) * BufSampleRate.ir(buf).reciprocal,
+        dur,
+        0.5,
+        0.5
+    )
+};
+)
+
+(
+~stretch_tilt.map(
+    \buf, ~bufs[\levy_sexualized],
+    \in, [~vector_smooth, 0, 1]
+)
+)
+
+/************************************
+Word by Word Sentence
+- pressure release => say next word
+ALT:
+- trigger => say next word
+(Combined with speech crowd)
+*************************************/
