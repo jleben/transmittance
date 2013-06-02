@@ -278,9 +278,11 @@ NodeProxy2 {
         ^value;
     }
 
-    set { arg key, value;
-        settings.put(key, value);
-        if (running) { synth.set(key, value) };
+    set { arg ...parameters;
+        parameters.pairsDo { |key, value|
+            settings.put(key, value);
+        };
+        if (running) { synth.set(*parameters) };
     }
 
     unsetAll {
