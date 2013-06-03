@@ -33,9 +33,10 @@ ProxyGui {
 
         if (item.controls.notNil) {
             controls_layout = HLayout().margins_(0).spacing_(2);
-            item.controls.keysValuesDo { |key, spec|
-                var knob, value;
-                spec = spec.asSpec;
+            item.controls.do { |assoc|
+                var key, spec, knob, value;
+                key = assoc.key;
+                spec = assoc.value.asSpec;
                 knob = Knob()
                 .fixedSize_(Size(25,25))
                 .mode_(\vert)
@@ -50,7 +51,7 @@ ProxyGui {
                     )
                 );
                 value = item.get(key);
-                if (value.notNil) { knob.value = value };
+                if (value.notNil) { knob.value = spec.unmap(value) };
             };
             controls_layout.add(nil);
         };
