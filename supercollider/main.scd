@@ -19,59 +19,91 @@ Load Buffers
 ~samples.keysValuesDo { |key, path, idx|
     ~bufs.put(key, Buffer.readChannel(Server.default, ~samples_dir +/+ path, channels:0, bufnum: idx));
 };
+
+~buf_pool = BufferPool();
+~bufs.keysValuesDo { |key, buf| ~buf_pool[key] = buf };
 );
 
 
 /************************************
-MiniBee preprocessing
+MiniBee preprocessing & sound
 ************************************/
 
-~bee2 = PatchEnvironment(currentEnvironment);
-~bee2[\minibee_id] = 2;
-~bee2.use { this.executeFile(~dir +/+ "preprocessing.scd"); };
+~bee_ids = [1,2];
 
+~bees = IdentityDictionary();
 
-/************************************
-Define sounds
-*************************************/
+~bee_ids.do { |id|
+    var preprocessing, sound, bee;
+    preprocessing = PatchEnvironment(currentEnvironment);
+    preprocessing[\minibee_id] = id;
+    preprocessing.use { this.executeFile(~dir +/+ "preprocessing.scd"); };
 
-~sound_envir = PatchEnvironment(~bee2.envir);
-~sound_envir.use { this.executeFile(~dir +/+ "sound.scd"); };
+    sound = PatchEnvironment(preprocessing.envir);
+    sound.use { this.executeFile(~dir +/+ "sound.scd"); };
+
+    bee = IdentityDictionary[
+        \preprocessing -> preprocessing,
+        \sound -> sound
+    ];
+
+    ~bees[id] = bee;
+};
 
 /***********************************
 Make GUI
 ************************************/
 (
-~toggle_preprocessing_btn = Button();
-~toggle_preprocessing_btn.states = [
-    ["OFF", Color.white, Color.red(0.6)],
-    ["ON", Color.white, Color.green(0.6)]
-];
-~toggle_preprocessing_btn.action = { arg x;
-    ~bee2.use {
-        x.value.switch(
-            1, ~run_preprocessing,
-            0, ~stop_preprocessing
-        )
+~headers = List();
+
+~bees.keysValuesDo { |id, bee|
+    ~headers.add([
+        StaticText().font_(Font(size: 15, bold: true)).string_("bee" + id),
+
+        Button()
+        .states_([
+            ["OFF", Color.white, Color.red(0.6)],
+            ["ON", Color.white, Color.green(0.6)]
+        ])
+        .action_({ arg btn;
+            bee[\preprocessing].use {
+                btn.value.switch(
+                    1, ~run_preprocessing,
+                    0, ~stop_preprocessing
+                )
+            };
+        })
+    ]);
+};
+
+~controls = List();
+
+~bees.keysValuesDo { |id, bee|
+    var bee_controls = List();
+    bee[\sound].envir.keysValuesDo { arg key, item;
+        bee_controls.add( ProxyGui(key, item, ~buf_pool) );
     };
+    ~controls.add(bee_controls);
 };
 
-~proxy_views = List();
-~sound_envir.envir.keysValuesDo { arg name, item;
-    ~proxy_views.add( ProxyGui(name, item) );
+~control_views = ~controls.collect { arg bee_controls;
+    bee_controls.collect(_.view);
 };
-~proxy_ctl_layout = VLayout();
-~proxy_views.do { |v| ~proxy_ctl_layout.add(v.view) };
 
-~window = Window();
+~main_layout = VLayout();
+~header_layout = GridLayout.columns(*~headers);
+~control_layout = GridLayout.columns(*~control_views);
+
+~scroll_view = ScrollView().hasBorder_(false);
+~scroll_view.canvas = View().layout_(VLayout(~control_layout, nil));
+
+~window = Window(
+    "SenseStage to Sound",
+    Rect(0,0,800,600).center_(Window.availableBounds.center)
+);
 ~window.layout = VLayout(
-    HLayout(
-        StaticText().string_("Preprocessing:"),
-        ~toggle_preprocessing_btn,
-        nil
-    ),
-    ~proxy_ctl_layout
+    ~header_layout,
+    ~scroll_view
 );
-
 ~window.front;
-);
+)
