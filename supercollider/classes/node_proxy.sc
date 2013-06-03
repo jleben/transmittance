@@ -5,7 +5,7 @@ NodeProxy2 {
     var <mappings, <settings, <>controls;
     var <bus, synth_def, synth;
     var <server, server_target, server_order;
-    var public_synth_def, public_synth, public_bus_index, <volume = 1.0;
+    var public_synth_def, public_synth, public_bus_index, <volume = -90.0;
     var <running = false, <playing = false;
     ///
     var make_synth_def,
@@ -379,7 +379,7 @@ NodeProxy2 {
             if (play_def.notNil) {
                 public_synth = play_def.play (
                     NodeProxy2.linkGroup,
-                    args: [out: public_bus_index, bus: in_bus_index, volume: volume.squared]
+                    args: [out: public_bus_index, bus: in_bus_index, volume: volume.dbamp]
                 );
                 playing = true;
             }{
@@ -391,8 +391,8 @@ NodeProxy2 {
     }
 
     volume_ { arg value;
-        volume = value.clip(0,1);
-        if (playing) { public_synth.set(\volume, volume.squared) };
+        volume = value.clip(-90, 20);
+        if (playing) { public_synth.set(\volume, volume.dbamp) };
     }
 
     silence {

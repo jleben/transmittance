@@ -7,7 +7,11 @@ ProxyGui {
     }
 
     init {
-        var label, run_button, volume_slider, main_control_layout, controls_button;
+        var
+        label,
+        run_button,
+        volume_slider, volume_spec, volume_label,
+        main_control_layout, controls_button;
 
         label = StaticText().string_(title).stringColor_(Color.white).align_(\center);
 
@@ -23,10 +27,24 @@ ProxyGui {
             )
         };
 
+        volume_spec = [-90, 20, -2].asSpec;
+
         volume_slider = Slider().orientation_(\horizontal);
-        volume_slider.action = { |x| item.volume = x.value };
+        volume_slider.action = { |x|
+            var volume = volume_spec.map(x.value);
+            item.volume = volume;
+            volume_label.string = volume.round(0.01).asString;
+        };
+
+        volume_label = StaticText()
+        .background_(Color.black)
+        .stringColor_(Color.white)
+        .fixedWidth_("-88.88".bounds.width);
+
         if (item.respondsTo('volume_')) {
-            volume_slider.value = item.volume;
+            var volume = item.volume;
+            volume_slider.value = volume_spec.unmap(volume);
+            volume_label.string = volume.round(0.01).asString;
         }{
             volume_slider.enabled = false;
         };
@@ -113,16 +131,18 @@ ProxyGui {
         .states_([["Show Ctl"], ["Hide Ctl"]])
         .enabled_(controls_view.notNil);
 
-        main_control_layout = HLayout(
-            run_button,
-            volume_slider,
-            controls_button
-        ).margins_(0).spacing_(2);
-
         view = View().background_(Color.gray(0.2));
-        view.layout = VLayout(
-            label,
-            main_control_layout,
+        view.layout =
+        VLayout (
+            HLayout (
+                run_button,
+                [label, stretch: 1],
+                controls_button,
+            ).margins_(0).spacing_(2),
+            HLayout (
+                volume_slider,
+                volume_label
+            ).margins_(0).spacing_(2),
             nil
         ).margins_(3).spacing_(2);
 
