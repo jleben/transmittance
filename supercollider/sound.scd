@@ -96,7 +96,7 @@ Količina gibanja => hitrost premikanja center position po sample-u.
         BufRateScale.ir(buf),
         LFNoise1.kr(0.5) * 0.5 + 0.5;
     );
-    sound = LPF.ar( sound, energy.pow(4) * 20000 + 200 ) * ((energy * 4).min(1) + 0.01) * 0.2;
+    sound = LPF.ar( sound, energy.pow(4) * 20000 + 200 ) * ((energy * 4).min(1) + 0.01) * 0.8;
     // Reverse filter and amp:
     /*
     x = (
