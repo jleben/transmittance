@@ -1,16 +1,16 @@
 (
 var group;
 
-~bee = MiniBee(id: ~minibee_id, numChannels: 3);
+~bee = MiniBee(id: ~minibee_id, numChannels: 4);
 
-~basic = FuncDef ({ arg x, y, z;
+~basic = FuncDef ({ arg pressure, x, y, z;
     var raw, magnitude;
 
     raw = [x,y,z] - 0.5;
 
     magnitude = raw.squared.sum;
 
-    raw ++ magnitude;
+    raw ++ magnitude ++ pressure;
 }, 4);
 ~basic.source = ~bee;
 
@@ -19,7 +19,7 @@ var group;
     in = in * scale;
     in = in / (1 + (in * in)).sqrt;
 };
-~vector_scaled.map(0, ~basic);
+~vector_scaled.map(0, [~basic, 0, 4]);
 
 ~vector_slow = NodeDef { arg x, y, z, cutoff = 0.5;
     LPF.kr( [x,y,z], cutoff );
