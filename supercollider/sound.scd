@@ -106,14 +106,16 @@ Količina gibanja => hitrost premikanja center position po sample-u.
     )
     */
 };
+~grain_reveal.controls = [
+    \interval -> [0.01, 0.1, \exp],
+    \dur -> [0.05, 0.2, \exp],
+    \grow -> [0.1, 2, \lin],
+    \decay -> [3.1, 20, \lin]
+];
 );
 
 (
 ~grain_reveal.map(\in, [~basic, 3, 1]);
-~grain_reveal.controls = IdentityDictionary[
-	\interval -> [0.01, 0.1, \exp],
-	\dur -> [0.05, 0.2, \exp]
-];
 ~grain_reveal.set(\buf, ~bufs[\dvorak11]);
 );
 
@@ -151,6 +153,10 @@ Granular Integration
         * 0.5
     )
 };
+~grain_integrate.controls = [
+    \grow -> [0.1, 2, \lin],
+    \decay -> [3.1, 20, \lin]
+];
 );
 (
 ~grain_integrate.map(\in, [~basic, 3, 1]);
@@ -165,7 +171,7 @@ Granular Disintegration
 (
 ~grain_disintegrate = NodeDef {
     arg buf,
-    interval_increase = 0.02,
+    max_intrv = 0.02,
     threshold = 0.002, grow = 0.2, attack = 3, decay = 15,
     in;
 
@@ -174,7 +180,7 @@ Granular Disintegration
     energy = (in - threshold).max(0) * grow;
     energy = Decay2.kr(energy, attack, decay).min(1.0);
 
-    interval = energy * interval_increase  + 0.03;
+    interval = energy * max_intrv  + 0.03;
     dur = 0.005 + ((1 - energy).pow(4) * 0.4);
 
     x = GrainBuf.ar (
@@ -192,6 +198,11 @@ Granular Disintegration
         * 0.5
     )
 };
+~grain_disintegrate.controls = [
+    \max_intrv -> [0, 0.1, \lin],
+    \grow -> [0.1, 2, \lin],
+    \decay -> [3.1, 20, \lin]
+];
 );
 (
 ~grain_disintegrate.map(\in, [~basic, 3, 1]);
@@ -236,6 +247,10 @@ large predelay (ghost trail, magic)
         0.5
     );
 };
+~grain_trigger_env.controls = [
+    \interval -> [0.01, 0.1, \exp],
+    \dur -> [0.05, 0.2, \exp],
+];
 );
 (
 ~grain_trigger_env.map(\trigger, [~trigger, 0]);
@@ -360,7 +375,14 @@ tilt => pick one loud
     a = a * amp * ((energy - 0.1).max(0) * 1.5).min(1);
     b = b * amp * ((vector.abs * 2).squared + ((energy - 0.1).max(0) * 1.5)).min(1);
     Mix.ar(a ++ b);
-}
+};
+~crowd.controls = [
+    \amp1 -> [0.01, 1, \exp],
+    \amp2 -> [0.01, 1, \exp],
+    \amp3 -> [0.01, 1, \exp],
+    \grow -> [0.1, 2, \lin],
+    \decay -> [3.1, 20, \lin]
+];
 );
 (
 ~crowd.map(
@@ -381,7 +403,7 @@ x -> granular pitch
 ************************************/
 
 (
-~stretch_trigger = NodeDef { arg buf, trigger, x, y, z;
+~stretch_trigger = NodeDef { arg buf, rate = 30, dur = 0.1, speed = -0.6, trigger, x, y, z;
     var pos, switch, reader, trig_env, grains, grain_pitch, grain_speed;
 
     //env = Env([0,1,1,0], [0,3,0]).kr(gate: trigger);
@@ -395,7 +417,7 @@ x -> granular pitch
     //grain_pitch = 0.2;
 
     //grain_speed = trig_env * y;
-    grain_speed = -0.6;
+    grain_speed = speed;
 
     pos = Phasor.ar(
         start:0,
@@ -407,16 +429,21 @@ x -> granular pitch
 
     grains = TGrains.ar(
         2,
-        Impulse.ar(30),
+        Impulse.ar(rate),
         buf,
         2.pow(grain_pitch),
         pos * BufSampleRate.ir(buf).reciprocal,
-        dur: 0.1,
+        dur: dur,
         amp: 0.9
     );
 
     Select.ar(switch, [reader, grains]);
-}
+};
+~stretch_trigger.controls = [
+    \rate -> [10, 40, \exp],
+    \dur -> [0.02, 0.2, \exp],
+    \speed -> [-2, 2],
+];
 );
 (
 ~stretch_trigger.map(
@@ -441,7 +468,7 @@ tilt => stretch (grain buffer pos increment)
 
     var rate, sound;
 
-    rate = in * rate_scale + rate_offsetž;
+    rate = in * rate_scale + rate_offset;
 
     sound = TGrains.ar (
         2,
@@ -454,6 +481,12 @@ tilt => stretch (grain buffer pos increment)
         0.5
     )
 };
+~stretch_tilt.controls = [
+    \interval -> [0.01, 0.1, \exp],
+    \dur -> [0.05, 0.2, \exp],
+    \rate_scale -> [0.5, 5],
+    \rate_offset -> [-1,1],
+];
 );
 
 (
