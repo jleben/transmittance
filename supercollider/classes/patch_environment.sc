@@ -1,7 +1,9 @@
 PatchEnvironment : EnvironmentRedirect
 {
-	*new { arg parent;
-		^super.new( Environment.new(proto:parent) )
+	var <>name;
+
+	*new { arg name, parent;
+		^super.new( Environment.new(proto:parent) ).name_(name);
 	}
 
 	put { arg key, value;
@@ -16,7 +18,11 @@ PatchEnvironment : EnvironmentRedirect
 				cur_value.def = value.def;
 				^cur_value;
 			}{
-				value = NodeProxy2 (key.asString, value.def);
+				var node_name;
+				if (name.notNil)
+				{ node_name = name ++ $_ ++ key.asString }
+				{ node_name = key.asString };
+				value = NodeProxy2 (node_name, value.def);
 				envir.put(key, value);
 				^value;
 			}

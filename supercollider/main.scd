@@ -35,11 +35,11 @@ MiniBee preprocessing & sound
 
 ~bee_ids.do { |id|
     var preprocessing, sound, bee;
-    preprocessing = PatchEnvironment(currentEnvironment);
+    preprocessing = PatchEnvironment("bee"++id, currentEnvironment);
     preprocessing[\minibee_id] = id;
     preprocessing.use { this.executeFile(~dir +/+ "preprocessing.scd"); };
 
-    sound = PatchEnvironment(preprocessing.envir);
+    sound = PatchEnvironment("bee"++id, preprocessing.envir);
     sound.use { this.executeFile(~dir +/+ "sound.scd"); };
 
     bee = IdentityDictionary[
