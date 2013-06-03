@@ -107,6 +107,7 @@ Količina gibanja => hitrost premikanja center position po sample-u.
     */
 };
 ~grain_reveal.controls = [
+    \buf -> Buffer,
     \interval -> [0.01, 0.1, \exp],
     \dur -> [0.05, 0.2, \exp],
     \grow -> [0.1, 2, \lin],
@@ -154,6 +155,7 @@ Granular Integration
     )
 };
 ~grain_integrate.controls = [
+    \buf -> Buffer,
     \grow -> [0.1, 2, \lin],
     \decay -> [3.1, 20, \lin]
 ];
@@ -199,6 +201,7 @@ Granular Disintegration
     )
 };
 ~grain_disintegrate.controls = [
+    \buf -> Buffer,
     \max_intrv -> [0, 0.1, \lin],
     \grow -> [0.1, 2, \lin],
     \decay -> [3.1, 20, \lin]
@@ -248,6 +251,7 @@ large predelay (ghost trail, magic)
     );
 };
 ~grain_trigger_env.controls = [
+    \buf -> Buffer,
     \interval -> [0.01, 0.1, \exp],
     \dur -> [0.05, 0.2, \exp],
 ];
@@ -326,6 +330,9 @@ Distance
     x = LPF.ar(x, gesture.linexp(0,1,700,20000));
     x = x * (gesture.min(0.2) + 0.8);
 };
+~distance.controls = [
+    \buf -> Buffer
+];
 );
 (
 ~distance.map(\energy, [~vector_smooth, 3, 1]);
@@ -347,7 +354,9 @@ Distortion
     XFade2.ar(b, a, gesture * 10 - 1);
 };
 );
-
+~distort.controls = [
+    \buf -> Buffer
+];
 (
 ~distort.map(\x, ~vector_smooth);
 ~distort.set(\buf, ~bufs[\levy_sexualized])
@@ -377,6 +386,9 @@ tilt => pick one loud
     Mix.ar(a ++ b);
 };
 ~crowd.controls = [
+    \buf1 -> Buffer,
+    \buf2 -> Buffer,
+    \buf3 -> Buffer,
     \amp1 -> [0.01, 1, \exp],
     \amp2 -> [0.01, 1, \exp],
     \amp3 -> [0.01, 1, \exp],
@@ -440,6 +452,7 @@ x -> granular pitch
     Select.ar(switch, [reader, grains]);
 };
 ~stretch_trigger.controls = [
+    \buf -> Buffer,
     \rate -> [10, 40, \exp],
     \dur -> [0.02, 0.2, \exp],
     \speed -> [-2, 2],
@@ -482,6 +495,7 @@ tilt => stretch (grain buffer pos increment)
     )
 };
 ~stretch_tilt.controls = [
+    \buf -> Buffer,
     \interval -> [0.01, 0.1, \exp],
     \dur -> [0.05, 0.2, \exp],
     \rate_scale -> [0.5, 5],
