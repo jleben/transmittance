@@ -1,4 +1,3 @@
-
 ~dir = PathName(thisProcess.nowExecutingPath).pathOnly;
 
 /************************************
@@ -118,5 +117,22 @@ Make GUI
     ~header_layout,
     ~scroll_view
 );
+
+if (Platform.ideName == "none")
+{
+    var quit_check, quit_button;
+
+    ~window.userCanClose = false;
+    ~window.onClose = { 0.exit };
+
+    quit_check = CheckBox().string_("May Quit?").value_(false);
+    quit_check.action = {
+        ~window.userCanClose = quit_check.value;
+    };
+
+    ~window.layout.add(10);
+    ~window.layout.add(quit_check, align: \right);
+};
+
 ~window.front;
-)
+);
