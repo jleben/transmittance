@@ -117,7 +117,7 @@ Količina gibanja => hitrost premikanja center position po sample-u.
 
 (
 ~grain_reveal.map(\in, [~basic, 3, 1]);
-~grain_reveal.set(\buf, ~bufs[\dvorak11]);
+~grain_reveal.set(\buf, ~buf_pool[\dvorak11]);
 );
 
 /************************************
@@ -162,7 +162,7 @@ Granular Integration
 );
 (
 ~grain_integrate.map(\in, [~basic, 3, 1]);
-~grain_integrate.set(\buf, ~bufs[\dvorak12]);
+~grain_integrate.set(\buf, ~buf_pool[\dvorak12]);
 );
 
 /************************************
@@ -209,7 +209,7 @@ Granular Disintegration
 );
 (
 ~grain_disintegrate.map(\in, [~basic, 3, 1]);
-~grain_disintegrate.set(\buf, ~bufs[\dvorak12]);
+~grain_disintegrate.set(\buf, ~buf_pool[\dvorak12]);
 );
 
 
@@ -258,7 +258,7 @@ large predelay (ghost trail, magic)
 );
 (
 ~grain_trigger_env.map(\trigger, [~trigger, 0]);
-~grain_trigger_env.set(\buf, ~bufs[\dvorak10]);
+~grain_trigger_env.set(\buf, ~buf_pool[\dvorak10]);
 );
 
 /************************************
@@ -281,7 +281,7 @@ SynthDef(\grain_env, { arg buf, interval = 0.02, dur = 0.1, pos;
 OSCFunc({ arg trig;
     "trig".postln;
     Synth(\grain_env, [
-        \buf, ~bufs.at([\dvorak10,\dvorak11,\dvorak12].choose),
+        \buf, ~buf_pool.at([\dvorak10,\dvorak11,\dvorak12].choose),
         \pos, 1.0.rand;
     ]);
 }, "/trigger");
@@ -336,7 +336,7 @@ Distance
 );
 (
 ~distance.map(\energy, [~vector_smooth, 3, 1]);
-~distance.set(\buf, ~bufs[\pinkola_trigger]);
+~distance.set(\buf, ~buf_pool[\pinkola_trigger]);
 );
 
 /************************************
@@ -359,7 +359,7 @@ Distortion
 ];
 (
 ~distort.map(\x, ~vector_smooth);
-~distort.set(\buf, ~bufs[\levy_sexualized])
+~distort.set(\buf, ~buf_pool[\levy_sexualized])
 );
 
 /************************************
@@ -402,9 +402,9 @@ tilt => pick one loud
     \energy_in, [~basic, 3, 1]
 );
 ~crowd.set(
-    \buf1, ~bufs[\pinkola_not_like], \amp1, 1,
-    \buf2, ~bufs[\pinkola_trigger], \amp2, 1,
-    \buf3, ~bufs[\levy_bunny], \amp3, 0.7,
+    \buf1, ~buf_pool[\pinkola_not_like], \amp1, 1,
+    \buf2, ~buf_pool[\pinkola_trigger], \amp2, 1,
+    \buf3, ~buf_pool[\levy_bunny], \amp3, 0.7,
 );
 );
 
@@ -463,7 +463,7 @@ x -> granular pitch
     \trigger, [~trigger, 0, 3],
     \x, [~vector_smooth, 0, 3]
 );
-~stretch_trigger.set(\buf, ~bufs[\levy_bunny]);
+~stretch_trigger.set(\buf, ~buf_pool[\levy_bunny]);
 );
 
 /************************************
@@ -505,7 +505,7 @@ tilt => stretch (grain buffer pos increment)
 
 (
 ~stretch_tilt.map( \in, [~vector_smooth, 0, 1] );
-~stretch_tilt.set( \buf, ~bufs[\levy_sexualized] );
+~stretch_tilt.set( \buf, ~buf_pool[\levy_sexualized] );
 )
 
 /************************************

@@ -5,24 +5,23 @@ Load Buffers
 *************************************/
 (
 ~samples_dir = ~dir +/+ "../samples";
-~samples = IdentityDictionary[
-    \dvorak10 -> "sadsamlucky/dvorak10.wav",
-    \dvorak11 -> "sadsamlucky/dvorak11.wav",
-    \dvorak12 -> "sadsamlucky/dvorak12.wav",
-    \levy_bunny -> "speech_long/ariel_levy_bunny.wav",
-    \levy_sexualized -> "speech_long/ariel_levy_heavily_sexualized.wav",
-    \pinkola_not_like -> "speech_long/pinkola_not_like_40s.wav",
-    \pinkola_trigger -> "speech_long/pinkola_trigger_40s.wav"
-];
-~bufs = IdentityDictionary();
-~samples.keysValuesDo { |key, path, idx|
-    ~bufs.put(key, Buffer.readChannel(Server.default, ~samples_dir +/+ path, channels:0, bufnum: idx));
-};
-
+~samples = this.executeFile(~dir +/+ "samples.scd");
 ~buf_pool = BufferPool();
-~bufs.keysValuesDo { |key, buf| ~buf_pool[key] = buf };
+~samples.keysValuesDo { |key, path, idx|
+    path = ~samples_dir +/+ path;
+    if (File.exists(path).not) {
+        warn("BufferPool: file '%' does not exist".format(path));
+    }{
+        ~buf_pool[key] =
+        Buffer.readChannel(
+            Server.default,
+            ~samples_dir +/+ path,
+            channels:0,
+            bufnum: idx
+        )
+    };
+};
 );
-
 
 /************************************
 MiniBee preprocessing & sound
