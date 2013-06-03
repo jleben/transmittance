@@ -54,6 +54,18 @@ MiniBee preprocessing & sound
 Make GUI
 ************************************/
 (
+~sound_node_keys = [
+    \grain_trigger_env,
+    \grain_reveal,
+    \grain_integrate,
+    \grain_disintegrate,
+    \distort,
+    \distance,
+    \stretch_trigger,
+    \stretch_tilt,
+    \crowd
+];
+
 ~headers = List();
 
 ~bees.keysValuesDo { |id, bee|
@@ -79,9 +91,10 @@ Make GUI
 ~controls = List();
 
 ~bees.keysValuesDo { |id, bee|
-    var bee_controls = List();
-    bee[\sound].envir.keysValuesDo { arg key, item;
-        bee_controls.add( ProxyGui(key, item, ~buf_pool) );
+    var bee_controls;
+    bee_controls = ~sound_node_keys.collect { |key|
+        var item = bee[\sound][key];
+        ProxyGui(key, item, ~buf_pool);
     };
     ~controls.add(bee_controls);
 };
