@@ -7,7 +7,7 @@ ProxyGui {
     }
 
     init {
-        var label, run_button, volume_slider, knobs_layout, bufs_layout;
+        var label, run_button, volume_slider, main_control_layout, controls_button;
 
         label = StaticText().string_(title).stringColor_(Color.white).align_(\center);
 
@@ -33,16 +33,17 @@ ProxyGui {
 
         if (item.controls.notNil)
         {
+            var knobs_layout, bufs_layout;
             controls_view = View();
             knobs_layout = HLayout().margins_(0).spacing_(5);
             bufs_layout = VLayout().margins_(0).spacing_(5);
             controls_view.layout = VLayout(
                 knobs_layout,
                 bufs_layout
-            );
+            ).margins_(1).spacing_(2);
 
             item.controls.do { |assoc|
-                var key, spec, knob, value;
+                var key, spec;
                 key = assoc.key;
                 spec = assoc.value;
 
@@ -50,6 +51,7 @@ ProxyGui {
 
                 { spec.respondsTo('asSpec') }
                 {
+                    var knob, value;
                     spec = spec.asSpec;
                     knob = Knob()
                     .fixedSize_(Size(25,25))
@@ -70,8 +72,14 @@ ProxyGui {
 
                 { spec === Buffer }
                 {
-                    var text, button;
-                    text = StaticText();
+                    var text, button, value;
+
+                    text = StaticText()
+                    .background_(Color.black)
+                    .stringColor_(Color.white)
+                    .string_("<not set>")
+                    .setProperty(\indent, 4);
+
                     button = Button().states_([[key]]);
                     button.action = {
                         buffer_pool.choose(
@@ -79,26 +87,50 @@ ProxyGui {
                             { arg buf_key;
                                 item.set(key, buffer_pool[buf_key]);
                                 text.string = buf_key;
-                            }
+                            },
+                            label: "Buffer for '%: %'".format(item.name, key);
                         );
                     };
+
                     bufs_layout.add(
-                        HLayout(button, text);
+                        HLayout(button, [text, stretch:1]);
                     );
+
+                    value = item.get(key);
+                    if (value.class === Buffer) {
+                        value = buffer_pool.find(value);
+                        if (value.notNil) {
+                            text.string = value;
+                        }
+                    }
                 }
             };
 
             knobs_layout.add(nil);
         };
 
+        controls_button = Button()
+        .states_([["CTL"], ["CTL"]])
+        .enabled_(controls_view.notNil);
+
+        main_control_layout = HLayout(
+            run_button,
+            volume_slider,
+            controls_button
+        ).margins_(0).spacing_(2);
+
         view = View().background_(Color.gray(0.2));
         view.layout = VLayout(
             label,
-            HLayout(
-                run_button,
-                volume_slider
-            ).margins_(0).spacing_(2);
+            main_control_layout
         ).margins_(3).spacing_(2);
-        if (controls_view.notNil) { view.layout.add(controls_view) };
+
+        if (controls_view.notNil) {
+            view.layout.add(controls_view);
+            controls_view.visible = false;
+            controls_button.action = { |btn|
+                controls_view.visible = btn.value == 1;
+            };
+        };
     }
 }

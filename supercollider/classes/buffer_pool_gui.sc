@@ -1,6 +1,6 @@
 BufferPoolSelector
 {
-    var <pool, window, list;
+    var <pool, window, list, label;
     var <>ok_action, <>cancel_action;
     // functions
     var update_listing;
@@ -16,13 +16,19 @@ BufferPoolSelector
             list.items = keys;
         };
 
+        label = StaticText().font_(Font(size:15, bold:true));
+
         list = ListView();
+
         ok_btn = Button().states_([["OK"]]);
+
         cancel_btn = Button().states_([["Cancel"]]);
-        window = Window();
+
+        window = Window("Choose Buffer");
         window.view.deleteOnClose_(false);
         window.layout =
         VLayout(
+            label,
             list,
             HLayout(nil, ok_btn, cancel_btn);
         );
@@ -72,6 +78,10 @@ BufferPoolSelector
             index = items.indexOf(key);
         };
         list.value = index;
+    }
+
+    label_ { arg text;
+        label.string = text;
     }
 
     show { window.front }
