@@ -110,7 +110,7 @@ ProxyGui {
         };
 
         controls_button = Button()
-        .states_([["CTL"], ["CTL"]])
+        .states_([["Show Ctl"], ["Hide Ctl"]])
         .enabled_(controls_view.notNil);
 
         main_control_layout = HLayout(
@@ -122,7 +122,8 @@ ProxyGui {
         view = View().background_(Color.gray(0.2));
         view.layout = VLayout(
             label,
-            main_control_layout
+            main_control_layout,
+            nil
         ).margins_(3).spacing_(2);
 
         if (controls_view.notNil) {
