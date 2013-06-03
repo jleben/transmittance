@@ -52,6 +52,10 @@ BufferPoolSelector
 
         list.enterKeyAction = ok_btn.action;
 
+        list.mouseDownAction = { |view, x, y, modifiers, buttonNumber, clickCount|
+            if (clickCount == 2, ok_btn.action);
+        };
+
         update_listing.value;
 
         pool.addDependant(this);
