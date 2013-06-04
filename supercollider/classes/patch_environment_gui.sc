@@ -67,10 +67,9 @@ ProxyGui {
 
                 case
 
-                { spec.respondsTo('asSpec') }
+                { spec.isKindOf(ControlSpec) }
                 {
                     var knob, value;
-                    spec = spec.asSpec;
                     knob = Knob()
                     .fixedSize_(Size(25,25))
                     .mode_(\vert)

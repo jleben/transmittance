@@ -2,7 +2,7 @@ NodeProxy2 {
     classvar link_group;
 
     var <>name, <def;
-    var <mappings, <settings, <>controls;
+    var <mappings, <settings, <controls;
     var <bus, synth_def, synth;
     var <server, server_target, server_order;
     var public_synth_def, public_synth, public_bus_index, <volume = -90.0;
@@ -223,6 +223,25 @@ NodeProxy2 {
         { was_running } {
             this.run( server_target, server_order );
         };
+    }
+
+    controls_ { arg specs;
+        controls = List();
+        specs.do { |spec|
+            case
+
+            { spec.value === Buffer }
+            {
+                controls.add(spec);
+            }
+
+            { spec.value.respondsTo('asSpec') }
+            {
+                controls.add( (spec.key -> spec.value.asSpec) )
+            }
+            //else
+            { Error("NodeProxy2: Unknown control spec.").throw };
+        }
     }
 
     map { arg ...parameters;
