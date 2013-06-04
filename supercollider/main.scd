@@ -15,7 +15,7 @@ Load Buffers
         ~buf_pool[key] =
         Buffer.readChannel(
             Server.default,
-            ~samples_dir +/+ path,
+            path,
             channels:0,
             bufnum: idx
         )
@@ -46,6 +46,98 @@ MiniBee preprocessing & sound
     ];
 
     ~bees[id] = bee;
+};
+
+/************************************
+Load Settings
+************************************/
+
+~parse_settings = { |settings|
+    var bees;
+    bees = ~settings[\bees];
+    try {
+        bees.keysValuesDo { |id, bee_settings|
+            ~parse_bee_settings.(id, bee_settings);
+        }
+    }{
+        warn("Settings: Error trying to parse bees.");
+    }
+};
+
+~parse_bee_settings = { |id, settings|
+    var bee = ~bees[id];
+    postln("Parsing settings for bee '%'".format(id));
+    if (bee.isNil) {
+        warn("Settings: No bee for id '%'".format(id));
+    }{
+        try {
+            settings.keysValuesDo { |proxy_key, proxy_settings|
+                ~parse_proxy_settings.(bee, proxy_key, proxy_settings);
+            }
+        }{
+            warn("Settings: Error trying to parse settings for bee '%'.".format(id));
+        }
+    }
+};
+
+~parse_proxy_settings = { |bee, proxy_key, settings|
+    var proxy = bee[\sound][proxy_key];
+    postln("Parsing settings for proxy '%'".format(proxy_key));
+    if (proxy.isNil) {
+        warn("Settings: Bee has no proxy for '%'".format(proxy_key));
+    }{
+        var controls = proxy.controls;
+        try {
+            settings.keysValuesDo { |control_key, control_value|
+                ~parse_control_settings.(proxy, controls, control_key, control_value);
+            }
+        }{
+            warn("Settings: Error trying to parse settings for proxy '%'.".format(proxy_key));
+        }
+    }
+};
+
+~parse_control_settings = { |proxy, controls, control_key, value|
+    var control, spec;
+    postln("Parsing settings for control '%'".format(control_key));
+
+    control = controls.detect { |control| control.key === control_key };
+    if (control.notNil) { spec = control.value };
+
+    case
+    { spec.isNil }
+    {
+        warn("Settings: Proxy has no control named '%'"
+            .format(control_key));
+    }
+    { spec === Buffer }
+    {
+        var buffer = ~buf_pool[value];
+        if (buffer.isNil) {
+            warn("Settings: No buffer for key '%'".format(value));
+        }{
+            proxy.set(control_key, buffer);
+        }
+    }
+    { spec.isKindOf(ControlSpec) }
+    {
+        proxy.set(control_key, spec.constrain(value));
+    }
+    // else
+    {
+        warn("Settings: Control '%' has unrecognized spec.".format(control_key));
+    }
+};
+
+try {
+    ~settings = this.executeFile(~dir +/+ "settings.scd");
+}{
+    warn("Settings: Error trying to load file.\nCheck syntax in \"settings.scd\".");
+};
+
+if (~settings.notNil) {
+    ~parse_settings.(~settings);
+    "Done loading settings.";
 };
 
 /***********************************
