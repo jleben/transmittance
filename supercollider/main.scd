@@ -242,7 +242,8 @@ Make GUI
     \distance,
     \stretch_trigger,
     \stretch_tilt,
-    \crowd
+    \crowd,
+    \sampler
 ];
 
 ~headers = List();

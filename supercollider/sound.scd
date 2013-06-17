@@ -123,6 +123,8 @@ Količina gibanja => hitrost premikanja center position po sample-u.
 Granular Integration
 - movement => integrate
 - slow rand pos
+
+IMPROVE: Raise volume when disintegrated!!
 *************************************/
 (
 ~grain_integrate = NodeDef {
@@ -315,6 +317,8 @@ pattern.play;
 
 /************************************
 Distance
+
+IMPROVE: Use Decay instead of LagUD, expose controls
 ************************************/
 
 (
@@ -493,12 +497,96 @@ tilt => stretch (grain buffer pos increment)
 
 (
 ~stretch_tilt.map( \in, [~vector_smooth, 0, 1] );
-)
+);
 
 /************************************
-Word by Word Sentence
+Word by Word
+(Sample after sample - requires a collection of buffers);
 - pressure release => say next word
-ALT:
+
+(
+ALTERNATIVE:
 - trigger => say next word
 (Combined with speech crowd)
+)
 *************************************/
+
+
+(
+~sampler = SynthProxy(
+    \sampler,
+    def: { arg buf;
+        PlayBuf.ar(1, buf, doneAction:2);
+    },
+    init: { arg me;
+        me.set(\threshold, 0.7);
+        me.set(\samples, []);
+
+        ~word = -1;
+
+        ~run_task = {
+            if (~task.isNil and: (~samples.size > 0)) {
+                ~task = {
+                    var proto_event = me.event;
+                    var word_count = ~samples.size;
+                    inf.do {
+                        var buf, pause;
+                        ~word = (~word + 1) % word_count;
+                        buf = ~samples[~word];
+                        pause = (buf.numFrames / buf.sampleRate);
+                        Synth(me.name, [out: me.bus, buf: buf]);
+                        pause.wait;
+                    }
+                }.fork(SystemClock);
+            };
+        };
+        ~stop_task = {
+            if (~task.notNil) { ~task.stop; ~task = nil };
+        };
+
+        ~task_controller =
+        FuncProxy ({ arg pressure;
+            me.set(\playing, pressure > ~threshold);
+        });
+        ~task_controller.source = ~bee;
+    },
+    run: {
+        ~task_controller.run;
+    },
+    stop: {
+        ~task_controller.stop;
+        ~word = -1;
+        ~stop_task.value;
+    },
+
+    update: { arg me, key, value;
+        key.switch(
+            \samples, {
+                ~stop_task.value;
+            },
+            \playing, {
+                if (me.running) {
+                    if(value === true) {
+                        ~run_task.value;
+                    } {
+                        ~stop_task.value;
+                    };
+                }
+            },
+            \gate, {
+                if (me.running) {
+                    if(value > 0.5) {
+                        ~run_task.value;
+                    } {
+                        ~stop_task.value;
+                    };
+                }
+            }
+        )
+    }
+);
+~sampler.controls = [
+	\samples -> [Buffer],
+    \gate -> [0,1]
+];
+);
