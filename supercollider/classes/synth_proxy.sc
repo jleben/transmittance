@@ -1,7 +1,7 @@
 SynthProxy {
     classvar link_group;
 
-    var <>name, init_func, run_func, stop_func, <def;
+    var <>name, init_func, run_func, stop_func, update_func, <def;
     var <mappings, environment, <controls;
     var <bus, synth_def;
     var <server, server_target, server_order;
@@ -10,8 +10,8 @@ SynthProxy {
     ///
     var cleanup;
 
-    *new { arg name, def, init, run, stop;
-        ^super.newCopyArgs(name, init, run, stop).init(def);
+    *new { arg name, def, init, run, stop, update;
+        ^super.newCopyArgs(name, init, run, stop, update).init(def);
     }
 
     *initClass {
@@ -37,6 +37,7 @@ SynthProxy {
     }
 
     init { arg def_;
+        var parent_envir;
 
         cleanup = {
             if (bus.notNil) { bus.free; bus = nil };
@@ -49,7 +50,11 @@ SynthProxy {
         };
 
         mappings = IdentityDictionary();
-        environment = Environment(proto: mappings, parent: currentEnvironment);
+
+        parent_envir = currentEnvironment;
+        if (parent_envir.respondsTo(\envir)) { parent_envir = parent_envir.envir };
+        environment = Environment(proto: mappings, parent: parent_envir);
+
         this.def = def_;
 
         environment.use { init_func.value(this) };
@@ -94,6 +99,7 @@ SynthProxy {
 
     set { arg key, value;
         mappings.put(key, value);
+        environment.use { update_func.value(this, key, value) };
     }
 
     get { arg key;
