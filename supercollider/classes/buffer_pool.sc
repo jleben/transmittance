@@ -23,31 +23,53 @@ BufferPool {
     find { arg buffer;
         ^buffers.findKeyForValue(buffer);
     }
-
+/*
     load { arg key, path, channels = 0, callback;
-        Buffer.readChannel(
-            Server.default,
-            path,
-            channels: channels,
-            action: { |buffer|
-                this.put(key, buffer);
-                callback.value(key, this);
-            }
-        )
+        if (PathName(path).exists.not) {
+            warn("BufferPool: file '%' does not exist".format(path));
+        }{
+            this.put(
+                key,
+                Buffer.readChannel(
+                    Server.default,
+                    path,
+                    channels: channels,
+                )
+            )
+            Buffer.readChannel(
+                Server.default,
+                path,
+                channels: channels,
+                action: { |buffer|
+                    this.put(key, buffer);
+                    callback.value(key, this);
+                }
+            )
+        }
     }
-
+*/
     free { arg key;
         var buffer;
         buffer = buffers.at(key);
         if (buffer.notNil) {
             buffers.put(key, nil);
-            buffer.free;
+            if (buffer.isKindOf(Collection)) {
+                buffer.do(_.free)
+            }{
+                buffer.free;
+            };
             this.changed(\buffer_removed, key);
         }
     }
 
     freeAll {
-        buffers.do { |buffer| buffer.free };
+        buffers.do { |buffer|
+            if (buffer.isKindOf(Collection)) {
+                buffer.do(_.free)
+            }{
+                buffer.free;
+            };
+        };
         buffers.clear;
     }
 

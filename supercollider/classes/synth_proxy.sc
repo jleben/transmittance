@@ -79,7 +79,7 @@ SynthProxy {
         specs.do { |spec|
             case
 
-            { spec.value === Buffer }
+            { spec.value === Buffer or: { spec.value == [Buffer] } }
             {
                 controls.add(spec);
             }

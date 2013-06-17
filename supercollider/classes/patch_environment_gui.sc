@@ -87,7 +87,7 @@ ProxyGui {
                     if (value.notNil) { knob.value = spec.unmap(value) };
                 }
 
-                { spec === Buffer }
+                { spec === Buffer or: { spec == [Buffer] } }
                 {
                     var text, button, value;
 
@@ -102,8 +102,13 @@ ProxyGui {
                         buffer_pool.choose(
                             text.string.asSymbol,
                             { arg buf_key;
-                                item.set(key, buffer_pool[buf_key]);
-                                text.string = buf_key;
+                                var buffer = buffer_pool[buf_key];
+                                if( (spec.isArray == buffer.isArray) ) {
+                                    item.set(key, buffer_pool[buf_key]);
+                                    text.string = buf_key;
+                                }{
+                                    warn("Incompatible buffer selection!");
+                                }
                             },
                             label: "Buffer for '%: %'".format(item.name, key);
                         );
@@ -114,12 +119,10 @@ ProxyGui {
                     );
 
                     value = item.get(key);
-                    if (value.class === Buffer) {
-                        value = buffer_pool.find(value);
-                        if (value.notNil) {
-                            text.string = value;
-                        }
-                    }
+                    value = buffer_pool.find(value);
+                    if (value.notNil) {
+                        text.string = value;
+                    };
                 }
             };
 

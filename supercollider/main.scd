@@ -8,17 +8,30 @@ Load Buffers
 ~samples = this.executeFile(~dir +/+ "samples.scd");
 ~buf_pool = BufferPool();
 ~samples.keysValuesDo { |key, path, idx|
+    var path_info;
     path = ~samples_dir +/+ path;
+
     if (File.exists(path).not) {
-        warn("BufferPool: file '%' does not exist".format(path));
+        warn("BufferPool: path '%' does not exist".format(path));
     }{
-        ~buf_pool[key] =
-        Buffer.readChannel(
-            Server.default,
-            path,
-            channels:0,
-            bufnum: idx
-        )
+        path_info = PathName(path);
+        if (path_info.isFolder) {
+            var filenames = path_info.files.collect(_.fileName).sort;
+            ~buf_pool[key] = filenames.collect { |filename|
+                Buffer.readChannel(
+                    Server.default,
+                    path +/+ filename,
+                    channels:0
+                )
+            }
+        }{
+            ~buf_pool[key] =
+            Buffer.readChannel(
+                Server.default,
+                path,
+                channels:0,
+            )
+        }
     };
 };
 );
@@ -66,7 +79,7 @@ Load Settings
 
 ~parse_bee_settings = { |id, settings|
     var bee = ~bees[id];
-    postln("Parsing settings for bee '%'".format(id));
+    //postln("Parsing settings for bee '%'".format(id));
     if (bee.isNil) {
         warn("Settings: No bee for id '%'".format(id));
     }{
@@ -82,7 +95,7 @@ Load Settings
 
 ~parse_proxy_settings = { |bee, proxy_key, settings|
     var proxy = bee[\sound][proxy_key];
-    postln("Parsing settings for proxy '%'".format(proxy_key));
+    //postln("Parsing settings for proxy '%'".format(proxy_key));
     if (proxy.isNil) {
         warn("Settings: Bee has no proxy for '%'".format(proxy_key));
     }{
@@ -99,7 +112,7 @@ Load Settings
 
 ~parse_control_settings = { |proxy, controls, control_key, value|
     var control, spec;
-    postln("Parsing settings for control '%'".format(control_key));
+    //postln("Parsing settings for control '%'".format(control_key));
 
     control = controls.detect { |control| control.key === control_key };
     if (control.notNil) { spec = control.value };
@@ -110,12 +123,18 @@ Load Settings
         warn("Settings: Proxy has no control named '%'"
             .format(control_key));
     }
-    { spec === Buffer }
+    { spec === Buffer or: { spec == [Buffer] } }
     {
         var buffer = ~buf_pool[value];
-        if (buffer.isNil) {
+        case
+        { buffer.isNil } {
             warn("Settings: No buffer for key '%'".format(value));
-        }{
+        }
+        { buffer.isArray != spec.isArray } {
+            warn("Settings: Buffer '%' is incompatible."
+                .format(value, control_key));
+        }
+        {
             proxy.set(control_key, buffer);
         }
     }
@@ -154,7 +173,7 @@ Save Settings
         { spec.isKindOf(ControlSpec) } {
             stream << indent << key.asString << ": " << node.get(key).asString << ",\n";
         }
-        { spec === Buffer } {
+        { spec === Buffer or: { spec == [Buffer] } } {
             var buffer, buf_key;
             buffer = node.get(key);
             if (buffer.notNil) {
