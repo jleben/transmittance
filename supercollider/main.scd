@@ -141,6 +141,76 @@ if (~settings.notNil) {
 };
 
 /***********************************
+Save Settings
+************************************/
+
+(
+~save_node = { |node, stream, indent|
+    node.controls.do { arg assoc;
+        var key, spec;
+        key = assoc.key;
+        spec = assoc.value;
+        case
+        { spec.isKindOf(ControlSpec) } {
+            stream << indent << key.asString << ": " << node.get(key).asString << ",\n";
+        }
+        { spec === Buffer } {
+            var buffer, buf_key;
+            buffer = node.get(key);
+            if (buffer.notNil) {
+                buf_key = ~buf_pool.find(buffer);
+                stream << indent << key.asString << ": " << buf_key.cs << ",\n";
+            }
+        }
+        // else
+        {
+            warn("Settings: Control '%' has unrecognized spec.".format(key));
+        };
+    }
+};
+
+~save_bee = { arg bee, stream, indent;
+    var indent_node;
+    bee[\sound].keysValuesDo { arg key, node;
+        if (node.controls.size > 0) {
+            stream << indent << key.asString << ": (\n";
+            indent_node = indent ++ "    ";
+            ~save_node.value(node, stream, indent_node);
+            stream << indent << "),\n";
+        }
+    }
+};
+
+~save_bees = { arg stream, indent;
+    var indent_bee, indent_bee_data;
+    stream << indent << "bees: (\n";
+    indent_bee = indent ++ "    ";
+    ~bees.keysValuesDo { |id, bee|
+        stream << indent_bee << id.asString << ": (\n";
+        indent_bee_data = indent_bee ++ "    ";
+        ~save_bee.value(bee, stream, indent_bee_data);
+        stream << indent_bee << "),\n";
+    };
+    stream << indent << "),\n";
+};
+
+~save_settings = {
+	var file, indent;
+    indent = "";
+    file = File(~dir +/+ "settings.scd", "w");
+    if (file.isOpen.not) {
+        warn("Settings: Could not open \"settings.scd\" for writing!");
+    }{
+        file << "(\n";
+        ~save_bees.value(file, indent);
+        file << ")\n";
+    };
+    file.close;
+    postln("Done saving settings.");
+};
+);
+
+/***********************************
 Make GUI
 ************************************/
 (
@@ -200,18 +270,45 @@ Make GUI
 ~scroll_view = ScrollView().hasBorder_(false);
 ~scroll_view.canvas = View().layout_(VLayout(~control_layout, nil));
 
+~save_settings_btn = Button().states_([["Save Settings"]]).action_({
+    var win, win_bounds;
+    win = Window("Overwrite Settings?");
+    win.layout = VLayout(
+        StaticText().string_("Are you sure you want to overwrite \"settings.scd\"?"),
+        nil,
+        HLayout(
+            [nil, stretch:1],
+            Button().states_([["OK"]]).action_({ ~save_settings.value; win.close }),
+            Button().states_([["Cancel"]]).action_({ win.close })
+        )
+    );
+    win_bounds = Rect();
+    win_bounds.size = win.view.sizeHint;
+    win_bounds = win_bounds.center = Window.availableBounds.center;
+    win.front;
+    win.bounds = win_bounds;
+});
+
+~bottom_layout = HLayout(
+    [nil, stretch:1],
+    ~save_settings_btn
+);
+
 ~window = Window(
     "SenseStage to Sound",
     Rect(0,0,800,600).center_(Window.availableBounds.center)
 );
+
 ~window.layout = VLayout(
     ~header_layout,
-    ~scroll_view
+    ~scroll_view,
+    10,
+    ~bottom_layout,
 );
 
 if (Platform.ideName == "none")
 {
-    var quit_check, quit_button;
+    var quit_check, quit_button, save_settings_btn;
 
     ~window.userCanClose = false;
     ~window.onClose = { 0.exit };
@@ -221,8 +318,9 @@ if (Platform.ideName == "none")
         ~window.userCanClose = quit_check.value;
     };
 
-    ~window.layout.add(10);
-    ~window.layout.add(quit_check, align: \right);
+    save_settings_btn = Button().states_([["Save Settings"]]).action_(~save_settings);
+
+    ~bottom_layout.add(quit_check);
 };
 
 ~window.front;
