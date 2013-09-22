@@ -146,14 +146,14 @@ Make GUI
 (
 ~sound_node_keys = [
     \grain_trigger_env,
-    \grain_reveal,
-    \grain_integrate,
-    \grain_disintegrate,
-    \distort,
-    \distance,
-    \stretch_trigger,
-    \stretch_tilt,
-    \crowd
+    \act_your_age,
+   \grain_integrate,
+   \grain_disintegrate,
+   \distort,
+  \distance,
+   \stretch_trigger,
+   \stretch_tilt,
+   \crowd
 ];
 
 ~headers = List();
@@ -202,7 +202,7 @@ Make GUI
 
 ~window = Window(
     "SenseStage to Sound",
-    Rect(0,0,800,600).center_(Window.availableBounds.center)
+    Rect(0,0,1000,350).center_(Window.availableBounds.center)
 );
 ~window.layout = VLayout(
     ~header_layout,

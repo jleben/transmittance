@@ -67,37 +67,205 @@ Grainular FM:
 )
 */
 
-/************************************
+/*******************************************************************
+
+Za potrebe "What if"/"Kaj če" je to zdaj
+ACT YOUR AGE scena
+
 Granular, Bring up volume by movement
 movement => raise amp, filter
 
 ADD:
 tilt => center position
 Količina gibanja => hitrost premikanja center position po sample-u.
-*************************************/
+********************************************************************/
+
+/***************************************************************
+questions!
+
+- zakaj kakršenkoli Enveloping amplifikacije eksplodira?
+  recimo amp1 * XLine. hm, EnvGen seems to work now ok...
+- kako sinhroniziratir start-time BufRd med bee1 in bee2?
+- kako delati z 2-channel bufferji. a je sploh možno?
+
+opcija:
+- a je možna komunikacija nazaj v GUI? recimo če se en parameter
+  spreminja z XLine (recimo), a lahko GUI to prikazuje?
+
+****************************************************************/
 
 
 (
-~grain_reveal = NodeDef {
-    arg buf, interval = 0.02, dur = 0.1,
-    threshold = 0.002, grow = 0.7, attack = 3, decay = 15,
-    in;
+~act_your_age = NodeDef {
+    arg buf1, buf2, buf3, buf4,
+	amp1=0.3, amp2=0.3, amp3=0.5, amp4=0.1,
+	m1_ffreq, m1_ff_e,
+	m2_ffreq, m2_ff_e,
+	b_ffreq, b_ff_e,
+	interval = 0.02, dur = 0.1,
+    threshold = 0.002, grow = 6, attack = 0.1, decay = 3.1,
+    in, trigger,
+	x, y, z;
 
-    var energy, sound;
+
+
+    var energy, sound, lines, melody1, melody2, beats ;
 
     energy = (in - threshold).max(0) * grow;
     energy = Decay2.kr(energy, attack, decay).min(1.0);
+	energy = DelayN.kr(in:energy, maxdelaytime: 10, delaytime: 0);
 
+	// amp1 = XLine.ar(0,1,200);
+
+	lines = BufRd.ar( // buffer reading osc
+		1,
+		[buf1,buf1], // but we need to expand this to make two-channel buffer...
+		Phasor.ar( // ramp loop
+			trig: 1,
+			rate: BufRateScale.kr(buf1) * 1, // can be negative for opposite direction!
+			start: BufFrames.kr(buf1),
+			end:0
+		)
+	) * amp1;
+
+	// sound = XLine.kr(start:0, end:1, dur:10) * sound;
+
+	lines = FreeVerb.ar(
+		in:lines,
+		mix:0.3,
+		room:0.7,
+		damp:0.5,
+		mul: EnvGen.kr(Env([0.001,1],[40],\lin), doneAction: 0) - 0.001
+	);
+
+	melody1 = BufRd.ar( // buffer reading osc
+		1,
+		[buf2,buf2], // but we need to expand this to make two-channel buffer...
+		Phasor.ar( // ramp loop
+			trig: 1,
+			rate: BufRateScale.kr(buf2) * 1, // can be negative for opposite direction!
+			start: BufFrames.kr(buf2),
+			end:0
+		)
+	) * amp2 ;
+
+	// LP filter
+	//m1_ffreq = XLine.kr(40,200,150);
+	//m1_ff_e = XLine.kr(40,1500,150);
+
+	//m1_ffreq = EnvGen.kr(Env([0,0,1], [30,30], \exponential));
+
+	melody1 = RLPF.ar(
+		in: melody1,
+		freq: Clip.kr(m1_ffreq + (m1_ff_e * energy), 40, 20000),
+		rq:0.5);
+
+
+	// delays
+	melody1 = CombC.ar(
+		in:melody1,
+		maxdelaytime:1,
+		delaytime:[0.4,0.6],
+		decaytime:4,
+		mul:0.3,
+		add:melody1
+	);
+
+	melody2 = BufRd.ar( // buffer reading osc
+		1,
+		[buf3,buf3], // but we need to expand this to make two-channel buffer...
+		Phasor.ar( // ramp loop
+			trig: 1,
+			rate: BufRateScale.kr(buf3) * 1, // can be negative for opposite direction!
+			start: BufFrames.kr(buf3),
+			end:0
+		)
+	) * amp3 ;
+
+	//m2_ffreq = XLine.kr(40,200,100);
+	//m2_ff_e = XLine.kr(40,1500,100);
+
+
+	melody2 = RLPF.ar(
+		in: melody2,
+		freq: Clip.kr(m2_ffreq + (m2_ff_e * energy), 40, 20000),
+		rq: 0.5
+	);
+
+
+	// delays
+	melody2 = CombC.ar(
+		in:melody2,
+		maxdelaytime:1,
+		delaytime:[0.3,0.4],
+		decaytime:4,
+		mul:0.3,
+		add:melody2
+	);
+
+
+	beats = BufRd.ar( // buffer reading osc
+		1,
+		[buf4,buf4], // but we need to expand this to make two-channel buffer...
+		Phasor.ar( // ramp loop
+			trig: 1,
+			rate: BufRateScale.kr(buf4) * 1, // can be negative for opposite direction!
+			start: BufFrames.kr(buf4),
+			end:0
+		)
+	) * amp4 ;
+
+	//b_ffreq = XLine.kr(40,500,300);
+	//b_ff_e = XLine.kr(40,1500,300);
+
+	beats = RLPF.ar(
+		in: beats,
+		freq: Clip.kr(b_ffreq + (b_ff_e * energy), 40, 20000),
+		rq: 0.5,
+		mul: EnvGen.kr(Env([0.001, 0.001,1],[100,60],\lin), doneAction: 0) - 0.001
+	);
+
+
+	decay = EnvGen.kr(Env([3.1,3.1,20],[80,60],\lin), doneAction: 0);
+
+	sound = lines + melody1 + melody2 + beats;
+
+
+
+	/*
+	// GRANULATOR
     sound = GrainBuf.ar (
-        2,
-        TDuty.ar(Dwhite(interval * 0.3, interval * 1.8)),
-        dur,
-        buf,
-        BufRateScale.ir(buf),
-        LFNoise1.kr(0.5) * 0.5 + 0.5;
+        numChannels:2,
+        trigger:TDuty.ar(Dwhite(interval * 0.3, interval * 1.8)),
+        dur:dur,
+		sndbuf:[buf1, buf2, buf3],
+        rate:BufRateScale.ir([buf1, buf2, buf3]),
+		pos: x,
+		mul: [amp1, amp2, amp3] - 0.01
     );
-    sound = LPF.ar( sound, energy.pow(4) * 20000 + 200 ) * ((energy * 4).min(1) + 0.01) * 0.8;
-    // Reverse filter and amp:
+	*/
+	// sound = LPF.ar( sound, energy.pow(4) * 20000 + 200 ) * ((energy * 4).min(1) + 0.01) * 0.8;
+
+	// Reverse filter and amp:
+	// sound = LPF.ar( sound, (1 - energy).pow(4) * 18000 + 800 ) * (( 1 - (energy * 0.1)).min(1) + 0.01) * 0.5;
+
+	// sound = FreeVerb.ar(sound);
+	// sound = CombC.ar(sound, 1, 0.5, 4);
+
+/*
+
+	sound2 = GrainBuf.ar (
+        numChannels:2,
+        trigger:TDuty.ar(Dwhite(interval * 0.3, interval * 1.8)),
+        dur:dur,
+        sndbuf:buf2,
+        rate:BufRateScale.ir(buf),
+		pos: y
+    );
+
+
+	sound = Mix.ar(sound ++ sound2);
+*/
     /*
     x = (
         LPF.ar( x, (1 - movement).pow(4) * 20000 + 200 )
@@ -105,19 +273,56 @@ Količina gibanja => hitrost premikanja center position po sample-u.
         * 0.5;
     )
     */
+
+
+/*
+	sound = SinOsc.ar(
+		freq:1000
+	) * LFPulse.kr (0.5);
+*/
 };
-~grain_reveal.controls = [
-    \buf -> Buffer,
-    \interval -> [0.01, 0.1, \exp],
-    \dur -> [0.05, 0.2, \exp],
-    \grow -> [0.1, 2, \lin],
+~act_your_age.controls = [
+    \buf1 -> Buffer,
+	\buf2 -> Buffer,
+	\buf3 -> Buffer,
+	\buf4 -> Buffer,
+
+	\amp1 -> [0.01, 1, \exp],
+	\amp2 -> [0.01, 1, \exp],
+
+
+	\m1_ffreq -> [20,20000, \exp],
+	\m1_ff_e -> [0, 1500, \lin],
+
+	\amp3 -> [0.01, 1, \exp],
+
+	\m2_ffreq -> [20,20000, \exp],
+	\m2_ff_e -> [0, 1500, \lin],
+
+	\amp4 -> [0.01, 1, \exp],
+
+	\b_ffreq -> [20,20000, \exp],
+	\b_ff_e -> [0, 1500, \lin],
+
+
+    //\interval -> [0.01, 0.1, \exp],
+    //\dur -> [0.05, 0.2, \exp],
+    \grow -> [0.1, 6, \lin],
     \decay -> [3.1, 20, \lin]
 ];
 );
 
 (
-~grain_reveal.map(\in, [~basic, 3, 1]);
+~act_your_age.map(
+	\in, [~basic, 3, 1],
+	\x, [~vector_smooth, 0, 3],
+	\y, [~vector_smooth, 1, 3],
+	\z, [~vector_smooth, 2, 3]
+
 );
+
+);
+
 
 /************************************
 Granular Integration
