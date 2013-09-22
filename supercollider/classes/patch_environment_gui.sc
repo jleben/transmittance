@@ -11,7 +11,8 @@ ProxyGui {
         label,
         run_button,
         volume_slider, volume_spec, volume_label,
-        main_control_layout, controls_button;
+        has_controls=false, controls_button,
+        monitors_layout, knobs_layout, bufs_layout;
 
         label = StaticText().string_(title).stringColor_(Color.white).align_(\center);
 
@@ -49,16 +50,27 @@ ProxyGui {
             volume_slider.enabled = false;
         };
 
+        controls_view = View();
+        controls_view.layout = VLayout().margins_(1).spacing_(2);
+
+        if (item.tryPerform(\monitors).notNil)
+        {
+            has_controls = true;
+            monitors_layout = VLayout().margins_(0).spacing_(2);
+            item.monitors.do { |spec, index|
+                var monitor_gui = NodeProxyMonitorGui(item, index);
+                monitor_gui.activate;
+                monitor_gui.view.fixedHeight = 10;
+                monitors_layout.add(monitor_gui.view);
+            };
+            controls_view.layout.add(monitors_layout);
+        };
+
         if (item.controls.notNil)
         {
-            var knobs_layout, bufs_layout;
-            controls_view = View();
+            has_controls = true;
             knobs_layout = HLayout().margins_(0).spacing_(5);
             bufs_layout = VLayout().margins_(0).spacing_(5);
-            controls_view.layout = VLayout(
-                knobs_layout,
-                bufs_layout
-            ).margins_(1).spacing_(2);
 
             item.controls.do { |assoc|
                 var key, spec;
@@ -127,11 +139,14 @@ ProxyGui {
             };
 
             knobs_layout.add(nil);
+
+            controls_view.layout.add(knobs_layout);
+            controls_view.layout.add(bufs_layout);
         };
 
         controls_button = Button()
         .states_([["Show Ctl"], ["Hide Ctl"]])
-        .enabled_(controls_view.notNil);
+        .enabled_(has_controls);
 
         view = View().background_(Color.gray(0.2));
         view.layout =
@@ -148,12 +163,10 @@ ProxyGui {
             nil
         ).margins_(3).spacing_(2);
 
-        if (controls_view.notNil) {
-            view.layout.add(controls_view);
-            controls_view.visible = false;
-            controls_button.action = { |btn|
-                controls_view.visible = btn.value == 1;
-            };
+        view.layout.add(controls_view);
+        controls_view.visible = false;
+        controls_button.action = { |btn|
+            controls_view.visible = btn.value == 1;
         };
     }
 }

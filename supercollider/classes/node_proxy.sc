@@ -2,8 +2,8 @@ NodeProxy2 {
     classvar link_group;
 
     var <>name, <def;
-    var <mappings, <settings, <controls;
-    var <bus, synth_def, synth;
+    var <mappings, <settings, <controls, <monitors;
+    var <bus, <monitor_bus, synth_def, synth;
     var <server, server_target, server_order;
     var public_synth_def, public_synth, public_bus_index, <volume = -90.0;
     var <running = false, <playing = false;
@@ -189,6 +189,7 @@ NodeProxy2 {
 
         cleanup = {
             if (bus.notNil) { bus.free; bus = nil };
+            if (monitor_bus.notNil) { monitor_bus.free; monitor_bus = nil; };
             remove_all_source_dependences.value;
             CmdPeriod.remove(this);
             synth = nil;
@@ -240,7 +241,21 @@ NodeProxy2 {
                 controls.add( (spec.key -> spec.value.asSpec) )
             }
             //else
-            { Error("NodeProxy2: Unknown control spec.").throw };
+            { Error("NodeProxy2: Invalid control spec.").throw };
+        }
+    }
+
+    monitors_ { arg specs;
+        monitors = List();
+        specs.do { |spec|
+            case
+
+            { spec.respondsTo('asSpec') }
+            {
+                monitors.add( spec.asSpec )
+            }
+
+            { Error("NodeProxy2: Invalid monitor spec.").throw };
         }
     }
 
@@ -310,6 +325,8 @@ NodeProxy2 {
 
     numChannels { ^synth_def.numChannels }
 
+    numMonitors { ^synth_def.numMonitors }
+
     rate { ^synth_def.rate }
 
     run { arg target, order;
@@ -341,6 +358,11 @@ NodeProxy2 {
         if (this.numChannels > 0) {
             bus = Bus.alloc(this.rate, server, this.numChannels);
             args = args ++ [\out, bus.index]
+        };
+
+        if (this.numMonitors > 0) {
+            monitor_bus = Bus.alloc(\control, server, this.numMonitors);
+            args = args ++ [\monitor_out_bus, monitor_bus.index];
         };
 
         synth = Synth.basicNew(synth_def.name, server);

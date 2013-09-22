@@ -87,6 +87,7 @@ Količina gibanja => hitrost premikanja center position po sample-u.
 
     energy = (in - threshold).max(0) * grow;
     energy = Decay2.kr(energy, attack, decay).min(1.0);
+    MonitorOut.kr(energy);
 
     sound = GrainBuf.ar (
         2,
@@ -113,6 +114,7 @@ Količina gibanja => hitrost premikanja center position po sample-u.
     \grow -> [0.1, 2, \lin],
     \decay -> [3.1, 20, \lin]
 ];
+~grain_reveal.monitors = [ ControlSpec(0, 1, \lin) ];
 );
 
 (
@@ -136,6 +138,7 @@ IMPROVE: Raise volume when disintegrated!!
 
     energy = (in - threshold).max(0) * grow;
     energy = Decay2.kr(energy, attack, decay).min(1.0);
+    MonitorOut.kr(energy);
 
     interval = (1 - energy) * 0.07  + 0.02;
     dur = 0.005 + (energy.squared * 0.4);
@@ -153,13 +156,14 @@ IMPROVE: Raise volume when disintegrated!!
         HPF.ar( x, (1 - energy).pow(3) * 1500 + 50 )
         * ((energy).min(1) + 0.4)
         * 0.5
-    )
+    );
 };
 ~grain_integrate.controls = [
     \buf -> Buffer,
     \grow -> [0.1, 2, \lin],
     \decay -> [3.1, 20, \lin]
 ];
+~grain_integrate.monitors = [ ControlSpec(0, 1, \lin) ];
 );
 (
 ~grain_integrate.map(\in, [~basic, 3, 1]);
@@ -181,6 +185,7 @@ Granular Disintegration
 
     energy = (in - threshold).max(0) * grow;
     energy = Decay2.kr(energy, attack, decay).min(1.0);
+    MonitorOut.kr(energy);
 
     interval = energy * max_intrv  + 0.03;
     dur = 0.005 + ((1 - energy).pow(4) * 0.4);
@@ -198,7 +203,7 @@ Granular Disintegration
         HPF.ar( x, (energy).pow(3) * 1500 + 20 )
         * (energy + 0.4)
         * 0.5
-    )
+    );
 };
 ~grain_disintegrate.controls = [
     \buf -> Buffer,
@@ -206,6 +211,7 @@ Granular Disintegration
     \grow -> [0.1, 2, \lin],
     \decay -> [3.1, 20, \lin]
 ];
+~grain_disintegrate.monitors = [ ControlSpec(0, 1, \lin) ];
 );
 (
 ~grain_disintegrate.map(\in, [~basic, 3, 1]);
@@ -375,6 +381,7 @@ tilt => pick one loud
 
     energy = (energy_in - threshold).max(0) * grow;
     energy = Decay2.kr(energy, attack, decay).min(1.0);
+    MonitorOut.kr(energy);
 
     a = PlayBuf.ar(1, [buf1, buf2, buf3], startPos: BufFrames.ir([buf1, buf2, buf3]) * 0.5, loop:1);
     b = PlayBuf.ar(1, [buf1, buf2, buf3], loop:1, );
@@ -393,6 +400,7 @@ tilt => pick one loud
     \grow -> [0.1, 2, \lin],
     \decay -> [3.1, 20, \lin]
 ];
+~crowd.monitors = [ ControlSpec(0, 1, \lin) ];
 );
 (
 ~crowd.map(
